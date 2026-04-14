@@ -183,7 +183,9 @@ pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#
 }
 
 /* hide mobile shell on desktop */
-.m-shell{display:none}
+@media(min-width:769px){
+  .m-shell{display:none}
+}
 
 /* ===== FX POPUP ===== */
 .fx-overlay{
@@ -912,15 +914,6 @@ function openStrudel() {
 
 // ---- MOBILE ----
 const isMobile = () => window.innerWidth <= 768;
-
-function initResponsive() {
-  const shell = document.getElementById('m-shell');
-  const layout = document.querySelector('.layout');
-  if (isMobile()) { shell.style.display='flex'; layout.style.display='none'; }
-  else            { shell.style.display='none';  layout.style.display='grid'; }
-}
-initResponsive();
-window.addEventListener('resize', initResponsive);
 
 document.getElementById('m-bpm-num').addEventListener('input', e => document.getElementById('m-bpm-range').value=e.target.value);
 document.getElementById('m-bpm-range').addEventListener('input', e => document.getElementById('m-bpm-num').value=e.target.value);
