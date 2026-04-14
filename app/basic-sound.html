@@ -612,19 +612,55 @@ function renderChips(p, trackInfo) {
 }
 
 function renderCode(code) {
-  // escape HTML first — this is display only, never touches currentCode
-  const esc = code
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;');
-  // syntax highlight display only
-  const highlighted = esc
-    .replace(/(\/\/[^\n]*)/g,'<span class="tok-comment">$1</span>')
-    .replace(/\b(setcps|stack|s|note|n|scale|bank|gain|lpf|hpf|room|delay|speed|fast|slow|rev|degradeBy|swing|nudge|distort|resonance|every)\b(?=\()/g,'<span class="tok-fn">$1</span>')
-    .replace(/("[^"]*")/g,'<span class="tok-string">$1</span>')
-    .replace(/\b(\d+\.?\d*)\b/g,'<span class="tok-num">$1</span>')
-    .replace(/(\$:)/g,'<span class="tok-keyword">$1</span>');
-  document.getElementById('code-out').innerHTML = highlighted;
+  // Single-pass tokenizer — never run regex on already-HTML strings
+  const lines = code.split('\n');
+  const FNS = new Set(['setcps','stack','s','note','n','scale','bank','gain','lpf','hpf','room','delay','speed','fast','slow','rev','degradeBy','swing','nudge','distort','resonance','every']);
+
+  const hlLine = (line) => {
+    // 1. if comment line, return whole thing dimmed
+    if (/^\s*\/\//.test(line)) return `<span class="tok-comment">${esc(line)}</span>`;
+
+    let out = '';
+    let i = 0;
+    while (i < line.length) {
+      // $: keyword
+      if (line[i]==='$' && line[i+1]===':') {
+        out += `<span class="tok-keyword">$:</span>`; i+=2; continue;
+      }
+      // inline comment
+      if (line[i]==='/' && line[i+1]==='/') {
+        out += `<span class="tok-comment">${esc(line.slice(i))}</span>`; break;
+      }
+      // string literal "..."
+      if (line[i]==='"') {
+        let j=i+1; while(j<line.length && line[j]!=='"') j++;
+        out += `<span class="tok-string">${esc(line.slice(i,j+1))}</span>`; i=j+1; continue;
+      }
+      // function name followed by (
+      if (/[a-zA-Z_]/.test(line[i])) {
+        let j=i; while(j<line.length && /\w/.test(line[j])) j++;
+        const word = line.slice(i,j);
+        if (FNS.has(word) && line[j]==='(') {
+          out += `<span class="tok-fn">${word}</span>`; i=j; continue;
+        }
+        out += esc(word); i=j; continue;
+      }
+      // number
+      if (/[0-9]/.test(line[i]) || (line[i]==='-' && /[0-9]/.test(line[i+1]||''))) {
+        let j=i; if(line[j]==='-') j++;
+        while(j<line.length && /[0-9.]/.test(line[j])) j++;
+        out += `<span class="tok-num">${esc(line.slice(i,j))}</span>`; i=j; continue;
+      }
+      out += esc(line[i]); i++;
+    }
+    return out;
+  };
+
+  document.getElementById('code-out').innerHTML = lines.map(hlLine).join('\n');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function loadStrudel(code) {
