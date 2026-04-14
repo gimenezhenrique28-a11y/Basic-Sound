@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BASIC SOUND</title>
+<link href="https://fonts.googleapis.com/css2?family=Fragment+Mono:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080808;--bg2:#0f0f0f;--bg3:#141414;--bg4:#1c1c1c;
+  --border:#1e1e1e;--border2:#2a2a2a;--border3:#333;
+  --text:#e8e8e8;--muted:#555;--muted2:#333;
+  --acid:#c8ff00;--acid-dim:#7a9900;--acid-dark:#1a2200;
+}
+body{background:var(--bg);color:var(--text);font-family:'Fragment Mono',monospace;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:9998}
+
+header{border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:14px;background:var(--bg)}
+.logo{font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;color:var(--acid);text-transform:uppercase}
+.logo-sub{font-size:10px;color:var(--muted);letter-spacing:0.15em;margin-left:auto}
+.status-dot{width:6px;height:6px;background:var(--acid);border-radius:50%;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.fx-btn{background:none;border:1px solid var(--border3);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.15em;padding:5px 12px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.fx-btn:hover{border-color:var(--acid-dim);color:var(--acid)}
+.fx-btn.active{border-color:var(--acid);color:var(--acid);background:var(--acid-dark)}
+
+.layout{display:grid;grid-template-columns:360px 1fr;height:calc(100vh - 49px)}
+
+.left{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;background:var(--bg)}
+.section{border-bottom:1px solid var(--border);padding:18px 22px}
+.section-label{font-size:9px;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.section-label::before{content:'//';color:var(--acid-dim)}
+textarea{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Fragment Mono',monospace;font-size:12px;padding:11px;resize:none;outline:none;line-height:1.6;transition:border-color .15s;min-height:80px}
+textarea:focus{border-color:var(--acid-dim)}
+textarea::placeholder{color:var(--muted)}
+.field-label{font-size:9px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+select,input[type="text"],input[type="number"]{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Fragment Mono',monospace;font-size:11px;padding:7px 9px;outline:none;transition:border-color .15s;appearance:none;-webkit-appearance:none}
+select:focus,input:focus{border-color:var(--acid-dim)}
+select option{background:#111;color:var(--text)}
+.url-row{position:relative}
+.url-row input{padding-right:32px}
+.url-clear{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-family:'Fragment Mono',monospace;font-size:12px;padding:2px 4px}
+.url-clear:hover{color:var(--text)}
+.bpm-row{display:flex;align-items:center;gap:8px}
+.bpm-row input[type="number"]{width:72px;flex-shrink:0}
+.bpm-row input[type="range"]{flex:1;appearance:none;-webkit-appearance:none;background:var(--border2);height:2px;outline:none;cursor:pointer}
+.bpm-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--acid);cursor:pointer}
+.key-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.generate-btn{margin:18px 22px;background:var(--acid);color:#000;border:none;font-family:'Space Mono',monospace;font-weight:700;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:13px;cursor:pointer;transition:background .1s,transform .1s;width:calc(100% - 44px)}
+.generate-btn:hover{background:#d9ff1a}
+.generate-btn:active{transform:scale(.98)}
+.generate-btn:disabled{background:var(--muted2);color:var(--muted);cursor:not-allowed;transform:none}
+.generating-label{font-size:9px;color:var(--acid-dim);letter-spacing:.2em;text-align:center;height:16px;padding:0 22px;overflow:hidden}
+.typing::after{content:'█';animation:cur .7s infinite}
+@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
+
+.right{display:grid;grid-template-rows:1fr 1fr;overflow:hidden}
+.player-pane{border-bottom:1px solid var(--border);position:relative;background:var(--bg)}
+.pane-header{display:flex;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid var(--border);background:var(--bg);position:absolute;top:0;left:0;right:0;z-index:10}
+.pane-tag{font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+.pane-tag span{color:var(--acid);margin-right:6px}
+iframe{width:100%;height:100%;border:none;background:#000;padding-top:36px}
+.empty-player{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding-top:36px}
+.empty-waveform{display:flex;gap:3px;align-items:center;height:36px}
+.wave-bar{width:3px;background:var(--border2);animation:wave 1.4s ease-in-out infinite}
+.wave-bar:nth-child(1){height:8px;animation-delay:0s}.wave-bar:nth-child(2){height:18px;animation-delay:.1s}.wave-bar:nth-child(3){height:30px;animation-delay:.2s}.wave-bar:nth-child(4){height:22px;animation-delay:.3s}.wave-bar:nth-child(5){height:36px;animation-delay:.4s}.wave-bar:nth-child(6){height:26px;animation-delay:.5s}.wave-bar:nth-child(7){height:14px;animation-delay:.6s}.wave-bar:nth-child(8){height:9px;animation-delay:.7s}
+@keyframes wave{0%,100%{opacity:.2;transform:scaleY(1)}50%{opacity:.5;transform:scaleY(1.3)}}
+.empty-text{font-size:11px;color:var(--muted);letter-spacing:.1em}
+.code-pane{position:relative;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.code-actions{margin-left:auto;display:flex;gap:7px}
+.code-btn{background:none;border:1px solid var(--border2);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.1em;padding:3px 9px;cursor:pointer;transition:border-color .15s,color .15s}
+.code-btn:hover{border-color:var(--acid-dim);color:var(--acid)}
+.code-scroll{flex:1;overflow-y:auto;padding:14px 18px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#666;white-space:pre-wrap;word-break:break-word}
+.code-empty{color:var(--muted);font-size:11px;letter-spacing:.05em}
+.tok-comment{color:#3a3a3a}.tok-keyword{color:#7a9900}.tok-string{color:#6a8800}.tok-fn{color:var(--acid)}.tok-num{color:#88aa00}
+.error-msg{background:#1a0a0a;border:1px solid #3a1010;color:#ff4444;font-size:11px;padding:11px 14px;margin:14px 18px;line-height:1.5}
+.analysis-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg)}
+.chip{font-size:9px;letter-spacing:.12em;color:var(--acid-dim);background:var(--acid-dark);border:1px solid #2a3800;padding:3px 8px;text-transform:uppercase}
+.analysis-row.hidden{display:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* ===== FX POPUP ===== */
+.fx-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .18s;
+}
+.fx-overlay.open{opacity:1;pointer-events:all}
+.fx-panel{
+  background:var(--bg3);border:1px solid var(--border3);
+  width:500px;max-width:92vw;
+  transform:translateY(20px) scale(.96);
+  transition:transform .24s cubic-bezier(.22,1,.36,1);
+}
+.fx-overlay.open .fx-panel{transform:translateY(0) scale(1)}
+.fx-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 20px;border-bottom:1px solid var(--border);background:var(--bg2);
+}
+.fx-panel-title{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.25em;color:var(--acid);text-transform:uppercase}
+.fx-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;font-family:'Fragment Mono',monospace}
+.fx-close:hover{color:var(--text)}
+
+/* knob grid */
+.knob-row{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)}
+.knob-cell{display:flex;flex-direction:column;align-items:center;padding:20px 10px 14px;border-right:1px solid var(--border)}
+.knob-cell:last-child{border-right:none}
+.knob-canvas{display:block;cursor:grab;user-select:none;-webkit-user-select:none}
+.knob-canvas:active{cursor:grabbing}
+.knob-name{font-size:8px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-top:9px}
+.knob-val{font-size:11px;color:var(--acid);margin-top:3px;letter-spacing:.04em;min-height:16px}
+
+/* slider grid */
+.slider-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)}
+.slider-cell{padding:16px 20px;border-right:1px solid var(--border)}
+.slider-cell:last-child{border-right:none}
+.slider-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.slider-name{font-size:8px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+.slider-val{font-size:11px;color:var(--acid)}
+input[type="range"].fx-slider{
+  width:100%;appearance:none;-webkit-appearance:none;
+  height:3px;background:var(--border2);outline:none;cursor:pointer;
+}
+input[type="range"].fx-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;
+  background:var(--bg3);border:2px solid var(--acid);cursor:pointer;
+}
+input[type="range"].fx-slider::-moz-range-thumb{
+  width:13px;height:13px;background:var(--bg3);
+  border:2px solid var(--acid);cursor:pointer;border-radius:0;
+}
+
+.fx-actions{padding:13px 20px;display:flex;justify-content:flex-end;gap:9px;background:var(--bg2);border-top:1px solid var(--border)}
+.fx-apply{background:var(--acid);color:#000;border:none;font-family:'Space Mono',monospace;font-weight:700;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:8px 20px;cursor:pointer;transition:background .1s}
+.fx-apply:hover{background:#d9ff1a}
+.fx-reset{background:none;border:1px solid var(--border3);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.12em;padding:7px 14px;cursor:pointer;transition:all .15s}
+.fx-reset:hover{border-color:var(--muted);color:var(--text)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="status-dot"></div>
+  <div class="logo">Basic Sound</div>
+  <div class="logo-sub">STRUDEL LIVE CODE ENGINE</div>
+  <button class="fx-btn" id="fx-toggle-btn" onclick="toggleFX()">⬡ FX CONTROLS</button>
+</header>
+
+<div class="layout">
+  <div class="left">
+    <div class="section">
+      <div class="section-label">Vibe prompt</div>
+      <textarea id="prompt" placeholder="dark acid techno with hypnotic hi-hats, driving 909 kick, minimal bassline that never resolves..." rows="4"></textarea>
+    </div>
+    <div class="section">
+      <div class="section-label">Genre</div>
+      <select id="genre">
+        <option value="">-- auto detect --</option>
+        <option>House</option><option>Techno</option><option>Drum & Bass</option>
+        <option>Jungle</option><option>Dubstep</option><option>UK Garage</option>
+        <option>Ambient</option><option>IDM</option><option>Acid</option>
+        <option>Footwork</option><option>Breaks</option><option>Hardstyle</option>
+      </select>
+    </div>
+    <div class="section">
+      <div class="section-label">Tempo</div>
+      <div class="bpm-row">
+        <input type="number" id="bpm-num" value="130" min="60" max="200"/>
+        <input type="range" id="bpm-range" min="60" max="200" value="130"/>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Key & Scale</div>
+      <div class="key-row">
+        <div>
+          <div class="field-label">Root</div>
+          <select id="key-root">
+            <option value="">-- any --</option>
+            <option>C</option><option>C#</option><option>D</option><option>D#</option>
+            <option>E</option><option>F</option><option>F#</option><option>G</option>
+            <option>G#</option><option>A</option><option>A#</option><option>B</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">Scale</div>
+          <select id="key-scale">
+            <option value="">-- any --</option>
+            <option>minor</option><option>major</option><option>dorian</option>
+            <option>phrygian</option><option>minor pentatonic</option><option>chromatic</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Reference URL (optional)</div>
+      <div class="url-row">
+        <input type="text" id="url-input" placeholder="youtube.com/... or soundcloud.com/..."/>
+        <button class="url-clear" onclick="document.getElementById('url-input').value=''">×</button>
+      </div>
+    </div>
+    <button class="generate-btn" id="gen-btn" onclick="generate()">▶ GENERATE PATTERN</button>
+    <div class="generating-label" id="gen-status"></div>
+  </div>
+
+  <div class="right">
+    <div class="player-pane">
+      <div class="pane-header">
+        <div class="pane-tag"><span>//</span>STRUDEL REPL</div>
+      </div>
+      <div class="empty-player" id="player-empty">
+        <div class="empty-waveform">
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+        </div>
+        <div class="empty-text">generate a pattern to play</div>
+      </div>
+      <iframe id="strudel-frame" style="display:none"></iframe>
+    </div>
+    <div class="code-pane">
+      <div class="pane-header">
+        <div class="pane-tag"><span>//</span>GENERATED CODE</div>
+        <div class="code-actions">
+          <button class="code-btn" onclick="copyCode()" id="copy-btn">COPY</button>
+          <button class="code-btn" onclick="openStrudel()">OPEN IN STRUDEL.CC ↗</button>
+        </div>
+      </div>
+      <div class="analysis-row hidden" id="chips-row"></div>
+      <div class="code-scroll">
+        <pre id="code-out"><span class="code-empty">// waiting for generation...</span></pre>
+        <div id="error-out"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FX POPUP -->
+<div class="fx-overlay" id="fx-overlay" onclick="overlayClick(event)">
+  <div class="fx-panel">
+    <div class="fx-panel-header">
+      <div class="fx-panel-title">⬡ FX Controls</div>
+      <button class="fx-close" onclick="closeFX()">✕</button>
+    </div>
+
+    <div class="knob-row">
+      <div class="knob-cell">
+        <canvas class="knob-canvas" id="knob-filter" width="64" height="64" data-param="filter" data-val="0.65"></canvas>
+        <div class="knob-name">Filter</div>
+        <div class="knob-val" id="kv-filter">—</div>
+      </div>
+      <div class="knob-cell">
+        <canvas class="knob-canvas" id="knob-resonance" width="64" height="64" data-param="resonance" data-val="0.25"></canvas>
+        <div class="knob-name">Resonance</div>
+        <div class="knob-val" id="kv-resonance">—</div>
+      </div>
+      <div class="knob-cell">
+        <canvas class="knob-canvas" id="knob-room" width="64" height="64" data-param="room" data-val="0.2"></canvas>
+        <div class="knob-name">Reverb</div>
+        <div class="knob-val" id="kv-room">—</div>
+      </div>
+      <div class="knob-cell">
+        <canvas class="knob-canvas" id="knob-dist" width="64" height="64" data-param="dist" data-val="0.0"></canvas>
+        <div class="knob-name">Drive</div>
+        <div class="knob-val" id="kv-dist">—</div>
+      </div>
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-cell">
+        <div class="slider-header">
+          <div class="slider-name">Master Gain</div>
+          <div class="slider-val" id="sv-gain">0.80</div>
+        </div>
+        <input type="range" class="fx-slider" id="sl-gain" min="0" max="1" step="0.01" value="0.80"
+          oninput="document.getElementById('sv-gain').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-cell">
+        <div class="slider-header">
+          <div class="slider-name">Swing</div>
+          <div class="slider-val" id="sv-swing">0.00</div>
+        </div>
+        <input type="range" class="fx-slider" id="sl-swing" min="0" max="0.2" step="0.01" value="0"
+          oninput="document.getElementById('sv-swing').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+    </div>
+
+    <div class="fx-actions">
+      <button class="fx-reset" onclick="resetFX()">RESET</button>
+      <button class="fx-apply" onclick="applyFX()">APPLY TO CODE ▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- KNOB ENGINE ----
+const KARC_S = Math.PI * 0.75;
+const KARC_E = Math.PI * 2.25;
+
+function drawKnob(canvas, val) {
+  const ctx = canvas.getContext('2d');
+  const cx=32, cy=32, r=24, lw=4;
+  ctx.clearRect(0,0,64,64);
+  ctx.lineCap='butt';
+  // track bg
+  ctx.beginPath(); ctx.arc(cx,cy,r,KARC_S,KARC_E);
+  ctx.strokeStyle='#252525'; ctx.lineWidth=lw; ctx.stroke();
+  // filled arc
+  const angle = KARC_S + val*(KARC_E-KARC_S);
+  ctx.beginPath(); ctx.arc(cx,cy,r,KARC_S,angle);
+  ctx.strokeStyle='#c8ff00'; ctx.lineWidth=lw; ctx.stroke();
+  // indicator dot
+  const dx=cx+Math.cos(angle)*(r-7), dy=cy+Math.sin(angle)*(r-7);
+  ctx.beginPath(); ctx.arc(dx,dy,2.5,0,Math.PI*2);
+  ctx.fillStyle='#c8ff00'; ctx.fill();
+  // center cap
+  ctx.beginPath(); ctx.arc(cx,cy,9,0,Math.PI*2);
+  ctx.fillStyle='#141414'; ctx.fill();
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function knobLabel(param, val) {
+  if(param==='filter') return Math.round(200+val*9800)+' Hz';
+  return val.toFixed(2);
+}
+
+function initKnobs() {
+  document.querySelectorAll('.knob-canvas').forEach(c => {
+    const v0 = parseFloat(c.dataset.val);
+    drawKnob(c, v0);
+    document.getElementById('kv-'+c.dataset.param).textContent = knobLabel(c.dataset.param, v0);
+
+    let drag=false, sy=0, sv=0;
+    const startDrag = (y) => { drag=true; sy=y; sv=parseFloat(c.dataset.val); };
+    const moveDrag = (y) => {
+      if(!drag) return;
+      let nv = Math.max(0, Math.min(1, sv+(sy-y)/130));
+      c.dataset.val = nv;
+      drawKnob(c, nv);
+      document.getElementById('kv-'+c.dataset.param).textContent = knobLabel(c.dataset.param, nv);
+    };
+    const endDrag = () => { drag=false; };
+
+    c.addEventListener('mousedown', e => { startDrag(e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', e => moveDrag(e.clientY));
+    window.addEventListener('mouseup', endDrag);
+    c.addEventListener('touchstart', e => { startDrag(e.touches[0].clientY); e.preventDefault(); }, {passive:false});
+    window.addEventListener('touchmove', e => { if(drag) moveDrag(e.touches[0].clientY); });
+    window.addEventListener('touchend', endDrag);
+  });
+}
+initKnobs();
+
+// ---- FX POPUP ----
+function toggleFX() {
+  const ov=document.getElementById('fx-overlay'), btn=document.getElementById('fx-toggle-btn');
+  if(ov.classList.contains('open')){ ov.classList.remove('open'); btn.classList.remove('active'); }
+  else { ov.classList.add('open'); btn.classList.add('active'); }
+}
+function closeFX() {
+  document.getElementById('fx-overlay').classList.remove('open');
+  document.getElementById('fx-toggle-btn').classList.remove('active');
+}
+function overlayClick(e) { if(e.target===document.getElementById('fx-overlay')) closeFX(); }
+
+function getFX() {
+  return {
+    filter: 200 + parseFloat(document.getElementById('knob-filter').dataset.val)*9800,
+    resonance: parseFloat(document.getElementById('knob-resonance').dataset.val),
+    room: parseFloat(document.getElementById('knob-room').dataset.val),
+    dist: parseFloat(document.getElementById('knob-dist').dataset.val),
+    gain: parseFloat(document.getElementById('sl-gain').value),
+    swing: parseFloat(document.getElementById('sl-swing').value)
+  };
+}
+
+function buildFXChain() {
+  const fx=getFX();
+  return [
+    fx.filter < 9500 ? `.lpf(${Math.round(fx.filter)})` : '',
+    fx.resonance > 0.05 ? `.resonance(${fx.resonance.toFixed(2)})` : '',
+    fx.room > 0.05 ? `.room(${fx.room.toFixed(2)})` : '',
+    fx.dist > 0.05 ? `.distort(${fx.dist.toFixed(2)})` : '',
+    `.gain(${fx.gain.toFixed(2)})`,
+    fx.swing > 0.01 ? `.swing(${fx.swing.toFixed(2)})` : ''
+  ].join('');
+}
+
+function applyFXToCode(code) {
+  // strip existing managed effects
+  let out = code.replace(/\.(lpf|hpf|resonance|room|distort|gain|swing)\([^)]*\)/g, '');
+  // append fx chain to lines that start with $:
+  const chain = buildFXChain();
+  out = out.replace(/^(\$:.*)/gm, l => l.trimEnd() + chain);
+  return out;
+}
+
+function applyFX() {
+  if(!currentCode){ closeFX(); return; }
+  const modified = applyFXToCode(currentCode);
+  renderCode(modified);
+  loadStrudel(modified);
+  closeFX();
+}
+
+function resetFX() {
+  const defaults = {filter:0.65, resonance:0.25, room:0.2, dist:0};
+  Object.entries(defaults).forEach(([k,v])=>{
+    const c=document.getElementById('knob-'+k);
+    c.dataset.val=v; drawKnob(c,v);
+    document.getElementById('kv-'+k).textContent=knobLabel(k,v);
+  });
+  document.getElementById('sl-gain').value=0.8; document.getElementById('sv-gain').textContent='0.80';
+  document.getElementById('sl-swing').value=0; document.getElementById('sv-swing').textContent='0.00';
+}
+
+// ---- CORE ----
+const SYSTEM_PROMPT = `You are an expert Strudel live coder. Produce working, idiomatic Strudel code capturing the described vibe.
+
+RULES:
+1. setcps(BPM/120) first
+2. $: for each parallel layer
+3. All mini-notation in double quotes
+4. No TidalCycles Haskell syntax
+5. Chain effects with dots
+6. stack() for drum layers
+7. Note names lowercase: c3, eb4
+8. Drum banks: .bank("RolandTR808") or .bank("RolandTR909")
+9. Scales: n("0 2 4").scale("C:minor")
+
+Return ONLY valid JSON, no markdown:
+{"genre":"...","bpm":130,"key":"C minor","mood":"short phrase","code":"full strudel code"}`;
+
+let currentCode = '';
+
+document.getElementById('bpm-num').addEventListener('input', e => document.getElementById('bpm-range').value=e.target.value);
+document.getElementById('bpm-range').addEventListener('input', e => document.getElementById('bpm-num').value=e.target.value);
+
+async function generate() {
+  const prompt=document.getElementById('prompt').value.trim();
+  const genre=document.getElementById('genre').value;
+  const bpm=document.getElementById('bpm-num').value;
+  const keyRoot=document.getElementById('key-root').value;
+  const keyScale=document.getElementById('key-scale').value;
+  const url=document.getElementById('url-input').value.trim();
+
+  if(!prompt && !genre && !url){
+    document.getElementById('error-out').innerHTML='<div class="error-msg">// describe a vibe, pick a genre, or add a reference URL</div>';
+    return;
+  }
+  const btn=document.getElementById('gen-btn'), status=document.getElementById('gen-status');
+  btn.disabled=true; document.getElementById('error-out').innerHTML='';
+  const msgs=['// analyzing vibe...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
+  let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
+  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1200);
+
+  let msg='';
+  if(url) msg+=`Reference URL: ${url}\n`;
+  msg+=`Vibe: ${prompt||'(none)'}`;
+  if(genre) msg+=`\nGenre: ${genre}`;
+  msg+=`\nBPM: ${bpm}`;
+  if(keyRoot) msg+=`\nKey: ${keyRoot}`;
+  if(keyScale) msg+=`\nScale: ${keyScale}`;
+  msg+='\n\nReturn ONLY the JSON object.';
+
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:[{role:'user',content:msg}]})
+    });
+    const data=await res.json();
+    clearInterval(ticker); status.classList.remove('typing');
+    if(data.error) throw new Error(data.error.message);
+    const raw=data.content.map(b=>b.type==='text'?b.text:'').join('').trim();
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    currentCode=parsed.code;
+    renderCode(parsed.code);
+    renderChips(parsed);
+    loadStrudel(parsed.code);
+    status.textContent='// pattern ready';
+  } catch(err) {
+    clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
+    document.getElementById('error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
+  }
+  btn.disabled=false;
+}
+
+function renderChips(p) {
+  const row=document.getElementById('chips-row');
+  row.classList.remove('hidden');
+  row.innerHTML=[p.genre,p.bpm?p.bpm+' bpm':null,p.key,p.mood].filter(Boolean)
+    .map(i=>`<span class="chip">${i}</span>`).join('');
+}
+
+function renderCode(code) {
+  const esc=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById('code-out').innerHTML=esc
+    .replace(/(\/\/[^\n]*)/g,'<span class="tok-comment">$1</span>')
+    .replace(/\b(setcps|stack|s|note|n|scale|bank|gain|lpf|hpf|room|delay|speed|fast|slow|rev|degradeBy|swing|nudge|distort|resonance)\b(?=\()/g,'<span class="tok-fn">$1</span>')
+    .replace(/("[^"]*")/g,'<span class="tok-string">$1</span>')
+    .replace(/\b(\d+\.?\d*)\b/g,'<span class="tok-num">$1</span>')
+    .replace(/(\$:)/g,'<span class="tok-keyword">$1</span>');
+}
+
+function loadStrudel(code) {
+  const frame=document.getElementById('strudel-frame'), empty=document.getElementById('player-empty');
+  frame.src=`https://strudel.cc/?${encodeURIComponent(code)}`;
+  frame.style.display='block'; empty.style.display='none';
+}
+
+function copyCode() {
+  if(!currentCode) return;
+  navigator.clipboard.writeText(currentCode).then(()=>{
+    const btn=document.getElementById('copy-btn');
+    btn.textContent='COPIED!'; setTimeout(()=>btn.textContent='COPY',1500);
+  });
+}
+
+function openStrudel() {
+  if(!currentCode) return;
+  window.open(`https://strudel.cc/?${encodeURIComponent(currentCode)}`,'_blank');
+}
+</script>
+</body>
+</html>
