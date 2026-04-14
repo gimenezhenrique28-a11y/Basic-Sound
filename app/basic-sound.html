@@ -417,31 +417,34 @@ function resetFX() {
 }
 
 // ---- CORE ----
-const SYSTEM_PROMPT = `You are an expert Strudel live coder. Produce rich, varied, working Strudel code that authentically captures the described vibe with multiple layers.
+const SYSTEM_PROMPT = `You are an expert Strudel live coder. Your job is to produce rich, working, multi-layer Strudel.cc code that authentically captures a vibe or reference track.
 
-STRUDEL RULES (strictly follow):
-1. First line: setcps(BPM/120) — e.g. setcps(130/120)
-2. Each layer uses $: prefix on its own line
-3. All pattern strings in double quotes: "bd sd"
-4. NO Haskell TidalCycles syntax — no $, #, <~, ~> operators
-5. Chain effects with dots: .lpf(800).room(0.3).gain(0.7)
-6. Combine drums with stack(): $: stack(s("bd ~ bd ~"), s("~ sd ~ sd"), s("hh*8"))
-7. Note names always lowercase: c3, eb4, f#2
-8. Always set drum bank: .bank("RolandTR808") or .bank("RolandTR909")
-9. Scales syntax: n("0 2 4 5 7").scale("C4:minor")
-10. Generate at least 4 distinct layers: drums, bass, melody/lead, pad or texture
+STRUDEL SYNTAX RULES — follow exactly:
+1. First line always: setcps(BPM/120)
+2. Each layer on its own line starting with $:
+3. Pattern strings always in double quotes: "bd ~ sd ~"
+4. NO Haskell/TidalCycles operators: never use $  #  <~  ~>
+5. Effects chained with dots: .lpf(800).room(0.3).gain(0.7)
+6. Drums combined with stack() inside one $: line
+7. Note names lowercase: c3  eb4  f#2  (never C3 or Eb4)
+8. Drum machines: always .bank("RolandTR808") or .bank("RolandTR909")
+9. Scale syntax: n("0 2 4 5 7").scale("A4:minor")
+10. Always produce exactly 5 layers: kick+snare+hats, perc, bass, lead/melody, pad
 
-EXAMPLE of correct multi-layer output:
-setcps(128/120)
-$: stack(s("bd ~ bd ~").bank("RolandTR909"),s("~ sd ~ sd").bank("RolandTR909"),s("hh*8").gain(0.4).bank("RolandTR909"))
-$: note("c2 ~ eb2 ~ f2 ~ g2 ~").s("sawtooth").lpf(600).gain(0.8)
-$: n("0 ~ 4 ~ 7 ~ 4 ~").scale("C4:minor").s("triangle").room(0.3).gain(0.5)
-$: note("c4*2").s("pad").room(0.6).gain(0.3).slow(2)
+VALID EXAMPLE (copy this structure):
+setcps(130/120)
+$: stack(s("bd ~ bd bd ~").bank("RolandTR909"),s("~ sd ~ sd").bank("RolandTR909"),s("[hh hh] ~ [hh hh] ~").gain(0.5).bank("RolandTR909"))
+$: s("cp ~ ~ cp").bank("RolandTR808").room(0.4).gain(0.4)
+$: note("a1 ~ ~ c2 ~ ~ e2 ~").s("sawtooth").lpf(700).resonance(5).gain(0.85)
+$: n("0 ~ 7 ~ 5 4 ~ 2").scale("A4:minor").s("square").hpf(400).room(0.25).gain(0.55).slow(2)
+$: note("a3*4").s("pad").lpf(1400).room(0.7).gain(0.25).slow(4)
 
-CRITICAL JSON RULE: The "code" value MUST be a single valid JSON string. Escape ALL newlines as \\n and ALL internal double quotes as \\". Do NOT include raw line breaks inside the JSON string value.
+If a reference track is mentioned, use your knowledge of that track's actual BPM, key, drum machine style, bassline character, and signature sounds to guide every choice.
 
-Return ONLY this JSON object, no markdown, no backticks, no explanation:
-{"genre":"Techno","bpm":128,"key":"C minor","mood":"dark hypnotic drive","code":"setcps(128/120)\\n$: stack(s(\\"bd ~ bd ~\\").bank(\\"RolandTR909\\"),s(\\"~ sd ~ sd\\").bank(\\"RolandTR909\\"))\\n$: note(\\"c2 ~ eb2\\").s(\\"sawtooth\\").lpf(500).gain(0.8)"}`;
+OUTPUT FORMAT — return ONLY this JSON, no markdown fences, no extra text:
+{"genre":"...","bpm":130,"key":"A minor","mood":"short phrase","code":"ESCAPED_CODE_HERE"}
+
+CRITICAL: In the "code" value, escape every newline as \\n and every double quote inside patterns as \\". Example snippet: "setcps(130\\/120)\\n$: stack(s(\\"bd ~ sd ~\\").bank(\\"RolandTR909\\"))\\n$: note(\\"a2\\").s(\\"sawtooth\\")"`;
 
 let currentCode = '';
 
@@ -462,37 +465,63 @@ async function generate() {
   }
   const btn=document.getElementById('gen-btn'), status=document.getElementById('gen-status');
   btn.disabled=true; document.getElementById('error-out').innerHTML='';
-  const msgs=['// analyzing vibe...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
+  const msgs=['// analyzing reference...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
   let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
   const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1200);
 
   let msg='';
-  if(url) msg+=`Reference URL: ${url}\n`;
-  msg+=`Vibe: ${prompt||'(none)'}`;
-  if(genre) msg+=`\nGenre: ${genre}`;
-  msg+=`\nBPM: ${bpm}`;
-  if(keyRoot) msg+=`\nKey: ${keyRoot}`;
-  if(keyScale) msg+=`\nScale: ${keyScale}`;
-  msg+='\n\nReturn ONLY the JSON object.';
+  if(url) msg+=`REFERENCE TRACK URL: ${url}\nUse your knowledge of this track — its BPM, key, drum style, bassline, and signature sounds — to guide the Strudel code as closely as possible.\n\n`;
+  if(prompt) msg+=`VIBE DESCRIPTION: ${prompt}\n`;
+  if(genre) msg+=`GENRE: ${genre}\n`;
+  msg+=`TARGET BPM: ${bpm}\n`;
+  if(keyRoot) msg+=`KEY ROOT: ${keyRoot}\n`;
+  if(keyScale) msg+=`SCALE: ${keyScale}\n`;
+  msg+=`\nGenerate the Strudel code now. Return ONLY the JSON object.`;
 
   try {
     const res=await fetch('/api/generate',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system:SYSTEM_PROMPT,messages:[{role:'user',content:msg}]})
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:2000,
+        system:SYSTEM_PROMPT,
+        messages:[{role:'user',content:msg}]
+      })
     });
     const data=await res.json();
     clearInterval(ticker); status.classList.remove('typing');
     if(data.error) throw new Error(data.error.message);
-    const raw=data.content.map(b=>b.type==='text'?b.text:'').join('').trim();
-    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
-    currentCode=parsed.code;
-    renderCode(parsed.code);
+
+    // extract raw text safely
+    const raw = data.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+      .trim();
+
+    // strip any accidental markdown fences
+    const clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(clean);
+    } catch(e) {
+      // try to extract JSON object if wrapped in extra text
+      const match = clean.match(/\{[\s\S]*\}/);
+      if(!match) throw new Error('Could not parse response as JSON');
+      parsed = JSON.parse(match[0]);
+    }
+
+    // IMPORTANT: store raw code string — never the HTML-highlighted version
+    currentCode = parsed.code;
+    renderCode(currentCode);
     renderChips(parsed);
-    loadStrudel(parsed.code);
+    loadStrudel(currentCode);
     status.textContent='// pattern ready';
   } catch(err) {
     clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
     document.getElementById('error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
+    console.error(err);
   }
   btn.disabled=false;
 }
@@ -505,13 +534,19 @@ function renderChips(p) {
 }
 
 function renderCode(code) {
-  const esc=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  document.getElementById('code-out').innerHTML=esc
+  // escape HTML first — this is display only, never touches currentCode
+  const esc = code
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+  // syntax highlight display only
+  const highlighted = esc
     .replace(/(\/\/[^\n]*)/g,'<span class="tok-comment">$1</span>')
-    .replace(/\b(setcps|stack|s|note|n|scale|bank|gain|lpf|hpf|room|delay|speed|fast|slow|rev|degradeBy|swing|nudge|distort|resonance)\b(?=\()/g,'<span class="tok-fn">$1</span>')
+    .replace(/\b(setcps|stack|s|note|n|scale|bank|gain|lpf|hpf|room|delay|speed|fast|slow|rev|degradeBy|swing|nudge|distort|resonance|every)\b(?=\()/g,'<span class="tok-fn">$1</span>')
     .replace(/("[^"]*")/g,'<span class="tok-string">$1</span>')
     .replace(/\b(\d+\.?\d*)\b/g,'<span class="tok-num">$1</span>')
     .replace(/(\$:)/g,'<span class="tok-keyword">$1</span>');
+  document.getElementById('code-out').innerHTML = highlighted;
 }
 
 function loadStrudel(code) {
