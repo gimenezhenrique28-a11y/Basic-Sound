@@ -90,6 +90,90 @@ pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#
 .analysis-row.hidden{display:none}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2)}
 
+/* ===== MOBILE ===== */
+@media(max-width:768px){
+  header{padding:12px 16px}
+  .logo-sub{display:none}
+  .fx-btn{font-size:9px;padding:4px 9px;letter-spacing:.1em}
+
+  /* hide desktop layout */
+  .layout{display:none}
+
+  /* mobile shell */
+  .m-shell{display:flex;flex-direction:column;height:calc(100vh - 45px)}
+  .m-tab-content{flex:1;overflow:hidden;position:relative}
+  .m-panel{position:absolute;inset:0;overflow-y:auto;display:none;flex-direction:column}
+  .m-panel.active{display:flex}
+
+  /* bottom tab bar */
+  .m-tabbar{
+    display:flex;border-top:1px solid var(--border);background:var(--bg2);
+    height:52px;flex-shrink:0;
+  }
+  .m-tab{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;background:none;border:none;color:var(--muted);
+    font-family:'Fragment Mono',monospace;font-size:8px;letter-spacing:.12em;
+    text-transform:uppercase;cursor:pointer;transition:color .15s;border-right:1px solid var(--border);
+  }
+  .m-tab:last-child{border-right:none}
+  .m-tab.active{color:var(--acid)}
+  .m-tab-icon{font-size:16px;line-height:1}
+
+  /* input panel */
+  .m-panel.input-panel{padding-bottom:8px}
+  .m-panel .section{border-bottom:1px solid var(--border);padding:14px 16px}
+  .m-panel .section-label{font-size:8px;margin-bottom:8px}
+  .m-panel textarea{font-size:13px;min-height:70px}
+  .m-panel select,
+  .m-panel input[type="text"],
+  .m-panel input[type="number"]{font-size:14px;padding:10px 11px}
+  .m-gen-wrap{padding:14px 16px 8px}
+  .m-generate-btn{
+    width:100%;background:var(--acid);color:#000;border:none;
+    font-family:'Space Mono',monospace;font-weight:700;font-size:12px;
+    letter-spacing:.2em;text-transform:uppercase;padding:15px;
+    cursor:pointer;transition:background .1s;
+  }
+  .m-generate-btn:active{background:#d9ff1a}
+  .m-generate-btn:disabled{background:var(--muted2);color:var(--muted)}
+  .m-gen-status{font-size:9px;color:var(--acid-dim);letter-spacing:.15em;text-align:center;margin-top:8px;min-height:14px}
+
+  /* player panel */
+  .m-player-panel{background:var(--bg)}
+  .m-player-inner{flex:1;position:relative;min-height:0}
+  .m-iframe{width:100%;height:100%;border:none;background:#000;display:none}
+  .m-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px}
+  .m-chips{display:flex;flex-wrap:wrap;gap:5px;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .m-chips.hidden{display:none}
+
+  /* code panel */
+  .m-code-panel{background:var(--bg)}
+  .m-code-actions{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .m-code-actions .code-btn{flex:1;text-align:center;padding:8px 4px;font-size:10px}
+  .m-code-scroll{flex:1;overflow-y:auto;padding:12px 16px}
+  .m-code-scroll pre{font-size:11px;line-height:1.6}
+
+  /* bpm row mobile */
+  .m-panel .bpm-row input[type="range"]::-webkit-slider-thumb{width:22px;height:22px}
+
+  /* FX panel mobile */
+  .fx-panel{width:100%;max-width:100%;margin:0;border-left:none;border-right:none;border-bottom:none;position:fixed;bottom:0;border-radius:0}
+  .fx-overlay{align-items:flex-end}
+  .fx-overlay.open .fx-panel{transform:translateY(0) scale(1)}
+  .fx-panel .fx-panel-header{padding:14px 16px}
+  .knob-cell{padding:16px 8px 12px}
+  .slider-cell{padding:14px 16px}
+
+  /* upload area mobile */
+  .m-panel .upload-area{padding:20px 12px}
+  .upload-icon{font-size:24px}
+  .upload-text{font-size:12px}
+}
+
+/* hide mobile shell on desktop */
+.m-shell{display:none}
+
 /* ===== FX POPUP ===== */
 .fx-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;
@@ -257,7 +341,125 @@ input[type="range"].fx-slider::-moz-range-thumb{
   </div>
 </div>
 
-<!-- FX POPUP -->
+<!-- MOBILE SHELL -->
+<div class="m-shell" id="m-shell">
+  <div class="m-tab-content">
+
+    <!-- INPUT TAB -->
+    <div class="m-panel input-panel active" id="m-tab-input">
+      <div class="section">
+        <div class="section-label">Vibe prompt</div>
+        <textarea id="m-prompt" placeholder="dark acid techno, hypnotic hi-hats, driving 909 kick..." rows="3"></textarea>
+      </div>
+      <div class="section">
+        <div class="section-label">Genre</div>
+        <select id="m-genre">
+          <option value="">-- auto detect --</option>
+          <option>House</option><option>Techno</option><option>Drum & Bass</option>
+          <option>Jungle</option><option>Dubstep</option><option>UK Garage</option>
+          <option>Ambient</option><option>IDM</option><option>Acid</option>
+          <option>Footwork</option><option>Breaks</option><option>Hardstyle</option>
+        </select>
+      </div>
+      <div class="section">
+        <div class="section-label">Tempo</div>
+        <div class="bpm-row">
+          <input type="number" id="m-bpm-num" value="130" min="60" max="200"/>
+          <input type="range" id="m-bpm-range" min="60" max="200" value="130"/>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">Key & Scale</div>
+        <div class="key-row">
+          <div>
+            <div class="field-label">Root</div>
+            <select id="m-key-root">
+              <option value="">-- any --</option>
+              <option>C</option><option>C#</option><option>D</option><option>D#</option>
+              <option>E</option><option>F</option><option>F#</option><option>G</option>
+              <option>G#</option><option>A</option><option>A#</option><option>B</option>
+            </select>
+          </div>
+          <div>
+            <div class="field-label">Scale</div>
+            <select id="m-key-scale">
+              <option value="">-- any --</option>
+              <option>minor</option><option>major</option><option>dorian</option>
+              <option>phrygian</option><option>minor pentatonic</option><option>chromatic</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">Reference URL (optional)</div>
+        <div class="url-row">
+          <input type="text" id="m-url-input" placeholder="youtube.com/... or soundcloud.com/..."/>
+          <button class="url-clear" onclick="document.getElementById('m-url-input').value=''">×</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">Audio file (optional)</div>
+        <div class="upload-area" id="m-upload-area" onclick="document.getElementById('m-audio-file').click()">
+          <div class="upload-icon">♫</div>
+          <div class="upload-text" id="m-upload-text">tap to analyze audio</div>
+          <div class="upload-sub">mp3 · wav · ogg · flac — runs locally</div>
+        </div>
+        <input type="file" id="m-audio-file" accept="audio/*" style="display:none" onchange="analyzeAudioMobile(this.files[0])">
+        <div id="m-analysis-status" style="font-size:10px;color:var(--acid-dim);letter-spacing:.1em;margin-top:8px;min-height:14px;padding:0 16px"></div>
+      </div>
+      <div class="m-gen-wrap">
+        <button class="m-generate-btn" id="m-gen-btn" onclick="generateMobile()">▶ GENERATE PATTERN</button>
+        <div class="m-gen-status typing" id="m-gen-status"></div>
+      </div>
+    </div>
+
+    <!-- PLAYER TAB -->
+    <div class="m-panel m-player-panel" id="m-tab-player">
+      <div class="m-chips hidden" id="m-chips-row"></div>
+      <div class="m-player-inner" id="m-player-inner">
+        <div class="m-empty" id="m-player-empty">
+          <div class="empty-waveform">
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+          </div>
+          <div class="empty-text">generate a pattern first</div>
+        </div>
+        <iframe id="m-strudel-frame" class="m-iframe"></iframe>
+      </div>
+    </div>
+
+    <!-- CODE TAB -->
+    <div class="m-panel m-code-panel" id="m-tab-code">
+      <div class="m-code-actions">
+        <button class="code-btn" onclick="copyCodeMobile()" id="m-copy-btn">COPY</button>
+        <button class="code-btn" onclick="openStrudelMobile()">OPEN IN STRUDEL.CC ↗</button>
+      </div>
+      <div class="m-code-scroll">
+        <pre id="m-code-out"><span class="code-empty">// waiting for generation...</span></pre>
+        <div id="m-error-out"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM TAB BAR -->
+  <div class="m-tabbar">
+    <button class="m-tab active" id="mtab-input" onclick="switchTab('input')">
+      <div class="m-tab-icon">⌨</div>INPUT
+    </button>
+    <button class="m-tab" id="mtab-player" onclick="switchTab('player')">
+      <div class="m-tab-icon">▶</div>PLAYER
+    </button>
+    <button class="m-tab" id="mtab-code" onclick="switchTab('code')">
+      <div class="m-tab-icon">{ }</div>CODE
+    </button>
+    <button class="m-tab" id="mtab-fx" onclick="toggleFX()">
+      <div class="m-tab-icon">⬡</div>FX
+    </button>
+  </div>
+</div>
 <div class="fx-overlay" id="fx-overlay" onclick="overlayClick(event)">
   <div class="fx-panel">
     <div class="fx-panel-header">
@@ -611,7 +813,7 @@ function renderChips(p, trackInfo) {
   row.innerHTML = items.map(i => `<span class="chip">${i}</span>`).join('');
 }
 
-function renderCode(code) {
+function highlightCode(targetId, code) {
   // Single-pass tokenizer — never run regex on already-HTML strings
   const lines = code.split('\n');
   const FNS = new Set(['setcps','stack','s','note','n','scale','bank','gain','lpf','hpf','room','delay','speed','fast','slow','rev','degradeBy','swing','nudge','distort','resonance','every']);
@@ -656,16 +858,18 @@ function renderCode(code) {
     return out;
   };
 
-  document.getElementById('code-out').innerHTML = lines.map(hlLine).join('\n');
+  document.getElementById(targetId).innerHTML = lines.map(hlLine).join('\n');
 }
 
 function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// desktop renderCode delegates to shared helper
+function renderCode(code) { highlightCode('code-out', code); }
+
 function loadStrudel(code) {
   const frame=document.getElementById('strudel-frame'), empty=document.getElementById('player-empty');
-  // Strudel uses hash-based URL: strudel.cc/#code=<base64>
   const encoded = btoa(unescape(encodeURIComponent(code)));
   frame.src=`https://strudel.cc/#${encoded}`;
   frame.style.display='block'; empty.style.display='none';
@@ -681,6 +885,126 @@ function copyCode() {
 
 function openStrudel() {
   if(!currentCode) return;
+  const encoded = btoa(unescape(encodeURIComponent(currentCode)));
+  window.open(`https://strudel.cc/#${encoded}`,'_blank');
+}
+
+// ---- MOBILE ----
+const isMobile = () => window.innerWidth <= 768;
+
+function initResponsive() {
+  const shell = document.getElementById('m-shell');
+  const layout = document.querySelector('.layout');
+  if (isMobile()) { shell.style.display='flex'; layout.style.display='none'; }
+  else            { shell.style.display='none';  layout.style.display='grid'; }
+}
+initResponsive();
+window.addEventListener('resize', initResponsive);
+
+document.getElementById('m-bpm-num').addEventListener('input', e => document.getElementById('m-bpm-range').value=e.target.value);
+document.getElementById('m-bpm-range').addEventListener('input', e => document.getElementById('m-bpm-num').value=e.target.value);
+
+function switchTab(name) {
+  ['input','player','code'].forEach(t => {
+    document.getElementById('m-tab-'+t).classList.toggle('active', t===name);
+    document.getElementById('mtab-'+t).classList.toggle('active', t===name);
+  });
+  document.getElementById('mtab-fx').classList.remove('active');
+}
+
+async function analyzeAudioMobile(file) {
+  if (!file) return;
+  const area=document.getElementById('m-upload-area'), statusEl=document.getElementById('m-analysis-status');
+  area.classList.add('analyzing'); statusEl.textContent='// decoding audio...';
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:44100});
+    const decoded = await audioCtx.decodeAudioData(arrayBuf);
+    statusEl.textContent='// analyzing...';
+    const analysis = await analyzeWithWebAudio(decoded.getChannelData(0), decoded.sampleRate);
+    audioAnalysis = analysis;
+    area.classList.remove('analyzing'); area.classList.add('has-file');
+    document.getElementById('m-upload-text').textContent = file.name.slice(0,24);
+    document.getElementById('m-bpm-num').value = analysis.bpm;
+    document.getElementById('m-bpm-range').value = analysis.bpm;
+    statusEl.textContent = `// bpm:${analysis.bpm} · ${analysis.key} · ${analysis.energy}`;
+  } catch(err) {
+    area.classList.remove('analyzing');
+    statusEl.textContent = `// failed: ${err.message}`;
+  }
+}
+
+async function generateMobile() {
+  const prompt   = document.getElementById('m-prompt').value.trim().slice(0,300);
+  const genre    = document.getElementById('m-genre').value;
+  const bpm      = document.getElementById('m-bpm-num').value;
+  const keyRoot  = document.getElementById('m-key-root').value;
+  const keyScale = document.getElementById('m-key-scale').value;
+  const refUrl   = document.getElementById('m-url-input').value.trim();
+
+  if (!prompt && !genre && !audioAnalysis) {
+    document.getElementById('m-error-out').innerHTML='<div class="error-msg">// describe a vibe, pick a genre, or drop an audio file</div>';
+    switchTab('code'); return;
+  }
+
+  const btn=document.getElementById('m-gen-btn'), status=document.getElementById('m-gen-status');
+  btn.disabled=true; document.getElementById('m-error-out').innerHTML='';
+  const hasRef = refUrl.length > 0;
+  const msgs = hasRef
+    ? ['// searching track...','// reading chords...','// mapping bassline...','// building patterns...','// finalizing...']
+    : ['// building patterns...','// layering sounds...','// tuning bass...','// finalizing...','// done...'];
+  let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
+  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1800);
+
+  try {
+    const res = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis:audioAnalysis, refUrl })
+    });
+    const data = await res.json();
+    clearInterval(ticker); status.classList.remove('typing');
+    if (data.error) throw new Error(data.error.message);
+
+    const raw = data.content.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    const clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    let parsed;
+    try { parsed = JSON.parse(clean); }
+    catch(e) { const m=clean.match(/\{[\s\S]*\}/); if(!m) throw new Error('Bad JSON'); parsed=JSON.parse(m[0]); }
+
+    currentCode = parsed.code;
+    highlightCode('m-code-out', currentCode);
+
+    const chips = document.getElementById('m-chips-row');
+    chips.classList.remove('hidden');
+    chips.innerHTML = [parsed.genre, parsed.bpm?parsed.bpm+' bpm':null, parsed.key, parsed.mood]
+      .filter(Boolean).map(i=>`<span class="chip">${i}</span>`).join('');
+
+    const encoded = btoa(unescape(encodeURIComponent(currentCode)));
+    const frame = document.getElementById('m-strudel-frame');
+    frame.src = `https://strudel.cc/#${encoded}`;
+    frame.style.display='block';
+    document.getElementById('m-player-empty').style.display='none';
+
+    status.textContent='// pattern ready';
+    switchTab('player');
+  } catch(err) {
+    clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
+    document.getElementById('m-error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
+    switchTab('code');
+  }
+  btn.disabled=false;
+}
+
+function copyCodeMobile() {
+  if (!currentCode) return;
+  navigator.clipboard.writeText(currentCode).then(()=>{
+    const btn=document.getElementById('m-copy-btn');
+    btn.textContent='COPIED!'; setTimeout(()=>btn.textContent='COPY',1500);
+  });
+}
+
+function openStrudelMobile() {
+  if (!currentCode) return;
   const encoded = btoa(unescape(encodeURIComponent(currentCode)));
   window.open(`https://strudel.cc/#${encoded}`,'_blank');
 }
