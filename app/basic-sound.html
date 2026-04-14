@@ -417,21 +417,31 @@ function resetFX() {
 }
 
 // ---- CORE ----
-const SYSTEM_PROMPT = `You are an expert Strudel live coder. Produce working, idiomatic Strudel code capturing the described vibe.
+const SYSTEM_PROMPT = `You are an expert Strudel live coder. Produce rich, varied, working Strudel code that authentically captures the described vibe with multiple layers.
 
-RULES:
-1. setcps(BPM/120) first
-2. $: for each parallel layer
-3. All mini-notation in double quotes
-4. No TidalCycles Haskell syntax
-5. Chain effects with dots
-6. stack() for drum layers
-7. Note names lowercase: c3, eb4
-8. Drum banks: .bank("RolandTR808") or .bank("RolandTR909")
-9. Scales: n("0 2 4").scale("C:minor")
+STRUDEL RULES (strictly follow):
+1. First line: setcps(BPM/120) — e.g. setcps(130/120)
+2. Each layer uses $: prefix on its own line
+3. All pattern strings in double quotes: "bd sd"
+4. NO Haskell TidalCycles syntax — no $, #, <~, ~> operators
+5. Chain effects with dots: .lpf(800).room(0.3).gain(0.7)
+6. Combine drums with stack(): $: stack(s("bd ~ bd ~"), s("~ sd ~ sd"), s("hh*8"))
+7. Note names always lowercase: c3, eb4, f#2
+8. Always set drum bank: .bank("RolandTR808") or .bank("RolandTR909")
+9. Scales syntax: n("0 2 4 5 7").scale("C4:minor")
+10. Generate at least 4 distinct layers: drums, bass, melody/lead, pad or texture
 
-Return ONLY valid JSON, no markdown:
-{"genre":"...","bpm":130,"key":"C minor","mood":"short phrase","code":"full strudel code"}`;
+EXAMPLE of correct multi-layer output:
+setcps(128/120)
+$: stack(s("bd ~ bd ~").bank("RolandTR909"),s("~ sd ~ sd").bank("RolandTR909"),s("hh*8").gain(0.4).bank("RolandTR909"))
+$: note("c2 ~ eb2 ~ f2 ~ g2 ~").s("sawtooth").lpf(600).gain(0.8)
+$: n("0 ~ 4 ~ 7 ~ 4 ~").scale("C4:minor").s("triangle").room(0.3).gain(0.5)
+$: note("c4*2").s("pad").room(0.6).gain(0.3).slow(2)
+
+CRITICAL JSON RULE: The "code" value MUST be a single valid JSON string. Escape ALL newlines as \\n and ALL internal double quotes as \\". Do NOT include raw line breaks inside the JSON string value.
+
+Return ONLY this JSON object, no markdown, no backticks, no explanation:
+{"genre":"Techno","bpm":128,"key":"C minor","mood":"dark hypnotic drive","code":"setcps(128/120)\\n$: stack(s(\\"bd ~ bd ~\\").bank(\\"RolandTR909\\"),s(\\"~ sd ~ sd\\").bank(\\"RolandTR909\\"))\\n$: note(\\"c2 ~ eb2\\").s(\\"sawtooth\\").lpf(500).gain(0.8)"}`;
 
 let currentCode = '';
 
@@ -468,7 +478,7 @@ async function generate() {
   try {
     const res=await fetch('/api/generate',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYSTEM_PROMPT,messages:[{role:'user',content:msg}]})
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system:SYSTEM_PROMPT,messages:[{role:'user',content:msg}]})
     });
     const data=await res.json();
     clearInterval(ticker); status.classList.remove('typing');
@@ -506,7 +516,9 @@ function renderCode(code) {
 
 function loadStrudel(code) {
   const frame=document.getElementById('strudel-frame'), empty=document.getElementById('player-empty');
-  frame.src=`https://strudel.cc/?${encodeURIComponent(code)}`;
+  // Strudel uses hash-based URL: strudel.cc/#code=<base64>
+  const encoded = btoa(unescape(encodeURIComponent(code)));
+  frame.src=`https://strudel.cc/#${encoded}`;
   frame.style.display='block'; empty.style.display='none';
 }
 
@@ -520,7 +532,8 @@ function copyCode() {
 
 function openStrudel() {
   if(!currentCode) return;
-  window.open(`https://strudel.cc/?${encodeURIComponent(currentCode)}`,'_blank');
+  const encoded = btoa(unescape(encodeURIComponent(currentCode)));
+  window.open(`https://strudel.cc/#${encoded}`,'_blank');
 }
 </script>
 </body>
