@@ -557,14 +557,18 @@ async function generate() {
   }
   const btn=document.getElementById('gen-btn'), status=document.getElementById('gen-status');
   btn.disabled=true; document.getElementById('error-out').innerHTML='';
-  const msgs=['// reading audio data...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
+  const refUrl = document.getElementById('url-input').value.trim();
+  const hasRef = refUrl.length > 0;
+  const msgs = hasRef
+    ? ['// searching track info...','// reading chord data...','// mapping bassline...','// building patterns...','// finalizing code...']
+    : ['// reading audio data...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
   let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
-  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1200);
+  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1800);
 
   try {
     const res = await fetch('/api/generate', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis: audioAnalysis })
+      body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis: audioAnalysis, refUrl })
     });
     const data = await res.json();
     clearInterval(ticker); status.classList.remove('typing');
@@ -583,9 +587,9 @@ async function generate() {
 
     currentCode = parsed.code;
     renderCode(currentCode);
-    renderChips(parsed);
+    renderChips(parsed, data._trackInfo);
     loadStrudel(currentCode);
-    status.textContent = '// pattern ready';
+    status.textContent = data._trackInfo ? '// pattern ready · researched' : '// pattern ready';
   } catch(err) {
     clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
     document.getElementById('error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
@@ -594,11 +598,17 @@ async function generate() {
   btn.disabled = false;
 }
 
-function renderChips(p) {
-  const row=document.getElementById('chips-row');
+function renderChips(p, trackInfo) {
+  const row = document.getElementById('chips-row');
   row.classList.remove('hidden');
-  row.innerHTML=[p.genre,p.bpm?p.bpm+' bpm':null,p.key,p.mood].filter(Boolean)
-    .map(i=>`<span class="chip">${i}</span>`).join('');
+  const items = [p.genre, p.bpm ? p.bpm+' bpm' : null, p.key, p.mood].filter(Boolean);
+  // add researched details if available
+  if (trackInfo) {
+    if (trackInfo.chords)     items.push(trackInfo.chords);
+    if (trackInfo.drumMachine) items.push(trackInfo.drumMachine);
+    if (trackInfo.energy)     items.push(trackInfo.energy+' energy');
+  }
+  row.innerHTML = items.map(i => `<span class="chip">${i}</span>`).join('');
 }
 
 function renderCode(code) {
