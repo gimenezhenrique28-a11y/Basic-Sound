@@ -165,8 +165,19 @@ pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#
   .knob-cell{padding:16px 8px 12px}
   .slider-cell{padding:14px 16px}
 
-  /* upload area mobile */
-  .m-panel .upload-area{padding:20px 12px}
+  /* tap-to-play */
+  .m-play-prompt{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:24px}
+  .m-play-prompt.hidden{display:none}
+  .m-play-tap-btn{background:var(--acid);border:none;color:#000;width:160px;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;border-radius:50%;transition:transform .1s}
+  .m-play-tap-btn:active{transform:scale(.95)}
+  .m-play-icon{font-size:36px;line-height:1}
+  .m-play-label{font-family:'Space Mono',monospace;font-weight:700;font-size:11px;letter-spacing:.2em}
+  .m-play-sub{font-size:9px;letter-spacing:.1em;opacity:.7}
+  .m-play-or{font-size:10px;color:var(--muted);letter-spacing:.15em}
+  .m-play-iframe-btn{background:none;border:1px solid var(--border3);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.15em;padding:8px 18px;cursor:pointer;text-transform:uppercase;transition:all .15s}
+  .m-play-iframe-btn:active{border-color:var(--acid);color:var(--acid)}
+  .m-play-note{font-size:9px;color:var(--muted2);letter-spacing:.08em;text-align:center}
+
   .upload-icon{font-size:24px}
   .upload-text{font-size:12px}
 }
@@ -426,7 +437,17 @@ input[type="range"].fx-slider::-moz-range-thumb{
           </div>
           <div class="empty-text">generate a pattern first</div>
         </div>
-        <iframe id="m-strudel-frame" class="m-iframe"></iframe>
+        <div class="m-play-prompt hidden" id="m-play-prompt">
+          <button class="m-play-tap-btn" onclick="mobilePlayTap()">
+            <div class="m-play-icon">▶</div>
+            <div class="m-play-label">TAP TO PLAY</div>
+            <div class="m-play-sub">opens in strudel.cc</div>
+          </button>
+          <div class="m-play-or">— or —</div>
+          <button class="m-play-iframe-btn" onclick="mobileLoadIframe()">EMBED PLAYER</button>
+          <div class="m-play-note">tap ▶ play inside the embed to start audio</div>
+        </div>
+        <iframe id="m-strudel-frame" class="m-iframe" allow="autoplay; microphone; midi; web-share"></iframe>
       </div>
     </div>
 
@@ -980,10 +1001,12 @@ async function generateMobile() {
       .filter(Boolean).map(i=>`<span class="chip">${i}</span>`).join('');
 
     const encoded = btoa(unescape(encodeURIComponent(currentCode)));
-    const frame = document.getElementById('m-strudel-frame');
-    frame.src = `https://strudel.cc/#${encoded}`;
-    frame.style.display='block';
+    // store encoded for tap handlers
+    window._mStrudelEncoded = encoded;
+    // show tap-to-play prompt — don't auto-load iframe (blocks audio on iOS/Android)
     document.getElementById('m-player-empty').style.display='none';
+    document.getElementById('m-strudel-frame').style.display='none';
+    document.getElementById('m-play-prompt').classList.remove('hidden');
 
     status.textContent='// pattern ready';
     switchTab('player');
@@ -995,7 +1018,22 @@ async function generateMobile() {
   btn.disabled=false;
 }
 
-function copyCodeMobile() {
+function mobilePlayTap() {
+  // direct tap = real user gesture = audio unlocked in new tab
+  if (!window._mStrudelEncoded) return;
+  window.open(`https://strudel.cc/#${window._mStrudelEncoded}`, '_blank');
+}
+
+function mobileLoadIframe() {
+  // embed option — user still needs to tap play inside the iframe
+  if (!window._mStrudelEncoded) return;
+  const frame = document.getElementById('m-strudel-frame');
+  frame.src = `https://strudel.cc/#${window._mStrudelEncoded}`;
+  frame.style.display = 'block';
+  document.getElementById('m-play-prompt').classList.add('hidden');
+}
+
+
   if (!currentCode) return;
   navigator.clipboard.writeText(currentCode).then(()=>{
     const btn=document.getElementById('m-copy-btn');
