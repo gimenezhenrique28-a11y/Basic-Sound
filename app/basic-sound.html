@@ -76,7 +76,16 @@ pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#
 .code-empty{color:var(--muted);font-size:11px;letter-spacing:.05em}
 .tok-comment{color:#3a3a3a}.tok-keyword{color:#7a9900}.tok-string{color:#6a8800}.tok-fn{color:var(--acid)}.tok-num{color:#88aa00}
 .error-msg{background:#1a0a0a;border:1px solid #3a1010;color:#ff4444;font-size:11px;padding:11px 14px;margin:14px 18px;line-height:1.5}
-.analysis-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg)}
+.upload-area{border:1px dashed var(--border3);padding:16px 12px;cursor:pointer;text-align:center;transition:border-color .15s;background:var(--bg2)}
+.upload-area:hover{border-color:var(--acid-dim)}
+.upload-area.has-file{border-color:var(--acid-dim);background:var(--acid-dark)}
+.upload-area.analyzing{border-color:var(--acid);animation:pulse-border .8s infinite}
+@keyframes pulse-border{0%,100%{border-color:var(--acid)}50%{border-color:var(--acid-dim)}}
+.upload-icon{font-size:20px;color:var(--muted);margin-bottom:6px}
+.upload-area.has-file .upload-icon{color:var(--acid)}
+.upload-text{font-size:10px;color:var(--muted);letter-spacing:.1em}
+.upload-area.has-file .upload-text{color:var(--acid)}
+.upload-sub{font-size:9px;color:var(--muted2);letter-spacing:.08em;margin-top:4px}
 .chip{font-size:9px;letter-spacing:.12em;color:var(--acid-dim);background:var(--acid-dark);border:1px solid #2a3800;padding:3px 8px;text-transform:uppercase}
 .analysis-row.hidden{display:none}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2)}
@@ -193,6 +202,17 @@ input[type="range"].fx-slider::-moz-range-thumb{
         </div>
       </div>
     </div>
+    <div class="section">
+      <div class="section-label">Audio file (optional)</div>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('audio-file').click()">
+        <div class="upload-icon">♫</div>
+        <div class="upload-text" id="upload-text">drop or click to analyze audio</div>
+        <div class="upload-sub">mp3 · wav · ogg · flac — runs locally</div>
+      </div>
+      <input type="file" id="audio-file" accept="audio/*" style="display:none" onchange="analyzeAudio(this.files[0])">
+      <div id="analysis-status" style="font-size:10px;color:var(--acid-dim);letter-spacing:.1em;margin-top:8px;min-height:14px"></div>
+    </div>
+
     <div class="section">
       <div class="section-label">Reference URL (optional)</div>
       <div class="url-row">
@@ -416,114 +436,162 @@ function resetFX() {
   document.getElementById('sl-swing').value=0; document.getElementById('sv-swing').textContent='0.00';
 }
 
+// ---- AUDIO ANALYSIS — runs in browser, zero tokens ----
+let audioAnalysis = null;
+
+async function analyzeAudio(file) {
+  if (!file) return;
+  const area = document.getElementById('upload-area');
+  const statusEl = document.getElementById('analysis-status');
+  area.classList.add('analyzing');
+  statusEl.textContent = '// decoding audio...';
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    const decoded = await audioCtx.decodeAudioData(arrayBuf);
+    const ch = decoded.getChannelData(0);
+    statusEl.textContent = '// analyzing...';
+    const sr = decoded.sampleRate;
+    const frameSize = 2048, hopSize = 512;
+
+    // onset strength (spectral flux)
+    const onsets = [];
+    let prevMag = new Float32Array(frameSize/2);
+    for (let i = 0; i + frameSize < ch.length; i += hopSize) {
+      let flux = 0;
+      for (let k = 0; k < frameSize/2; k++) {
+        const mag = Math.abs(ch[i+k] * 0.5*(1-Math.cos(2*Math.PI*k/(frameSize-1))));
+        const d = mag - prevMag[k]; if (d > 0) flux += d; prevMag[k] = mag;
+      }
+      onsets.push(flux);
+    }
+
+    // BPM via autocorrelation
+    const minL = Math.round(sr/hopSize*60/200), maxL = Math.round(sr/hopSize*60/70);
+    let bestLag = minL, bestCorr = -Infinity;
+    for (let lag = minL; lag <= maxL; lag++) {
+      let c = 0; for (let i = 0; i < onsets.length - lag; i++) c += onsets[i]*onsets[i+lag];
+      if (c > bestCorr) { bestCorr = c; bestLag = lag; }
+    }
+    const rawBpm = 60/(bestLag*hopSize/sr);
+    const grids = [70,75,80,85,90,95,100,105,110,115,120,125,128,130,132,135,138,140,145,150,160,170,174,180];
+    const bpm = grids.reduce((a,b) => Math.abs(b-rawBpm)<Math.abs(a-rawBpm)?b:a);
+
+    // key via chroma
+    const chroma = new Float32Array(12);
+    const limit = Math.min(ch.length, sr*30);
+    for (let i = 0; i + frameSize < limit; i += frameSize)
+      for (let k = 0; k < frameSize; k++) {
+        const freq = k*sr/frameSize; if (freq<80||freq>2000) continue;
+        const pc = Math.round(12*Math.log2(freq/440)+69) % 12;
+        if (pc >= 0) chroma[pc] += Math.abs(ch[i+k]);
+      }
+    const major=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+    const minor=[6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+    const notes=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    let bestScore=-Infinity, bestKey='C minor';
+    for (let root=0;root<12;root++) for (const [prof,mode] of [[major,'major'],[minor,'minor']]) {
+      let s=0; for (let i=0;i<12;i++) s+=chroma[(i+root)%12]*prof[i];
+      if (s>bestScore) { bestScore=s; bestKey=`${notes[root]} ${mode}`; }
+    }
+
+    // beat pattern 16 steps
+    const sps = (sr*60/bpm/4)/hopSize;
+    const pat = Array.from({length:16},(_,step)=>{
+      const idx=Math.round(step*sps);
+      const w=onsets.slice(Math.max(0,idx-2),idx+3);
+      return w.length&&Math.max(...w)>0.3?'x':'.';
+    }).join('');
+
+    // energy
+    let rms=0; for (let i=0;i<Math.min(ch.length,sr*10);i++) rms+=ch[i]*ch[i];
+    rms=Math.sqrt(rms/Math.min(ch.length,sr*10));
+    const energy = rms>0.15?'high':rms>0.06?'mid':'low';
+
+    // bass contour
+    const cSize=Math.floor(Math.min(ch.length,sr*20)/4);
+    const lvls=['low','mid-low','mid','high'];
+    const bass=Array.from({length:4},(_,c)=>{
+      let e=0; for(let i=c*cSize;i<(c+1)*cSize;i++) e+=Math.abs(ch[i]);
+      return lvls[Math.min(3,Math.floor(e/cSize*40))];
+    }).join('>');
+
+    audioAnalysis = { bpm, key: bestKey, beatPattern: pat, bassContour: bass, energy };
+    area.classList.remove('analyzing'); area.classList.add('has-file');
+    document.getElementById('upload-text').textContent = file.name.slice(0,28);
+    document.getElementById('bpm-num').value = bpm;
+    document.getElementById('bpm-range').value = bpm;
+    statusEl.textContent = `// bpm:${bpm} · ${bestKey} · energy:${energy}`;
+  } catch(err) {
+    area.classList.remove('analyzing');
+    statusEl.textContent = `// analysis failed: ${err.message}`;
+  }
+}
+
+// drag-drop
+const uploadArea = document.getElementById('upload-area');
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor='var(--acid)'; });
+uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor=''; });
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault(); uploadArea.style.borderColor='';
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('audio/')) analyzeAudio(f);
+});
+
 // ---- CORE ----
-const SYSTEM_PROMPT = `You are an expert Strudel live coder. Your job is to produce rich, working, multi-layer Strudel.cc code that authentically captures a vibe or reference track.
-
-STRUDEL SYNTAX RULES — follow exactly:
-1. First line always: setcps(BPM/120)
-2. Each layer on its own line starting with $:
-3. Pattern strings always in double quotes: "bd ~ sd ~"
-4. NO Haskell/TidalCycles operators: never use $  #  <~  ~>
-5. Effects chained with dots: .lpf(800).room(0.3).gain(0.7)
-6. Drums combined with stack() inside one $: line
-7. Note names lowercase: c3  eb4  f#2  (never C3 or Eb4)
-8. Drum machines: always .bank("RolandTR808") or .bank("RolandTR909")
-9. Scale syntax: n("0 2 4 5 7").scale("A4:minor")
-10. Always produce exactly 5 layers: kick+snare+hats, perc, bass, lead/melody, pad
-
-VALID EXAMPLE (copy this structure):
-setcps(130/120)
-$: stack(s("bd ~ bd bd ~").bank("RolandTR909"),s("~ sd ~ sd").bank("RolandTR909"),s("[hh hh] ~ [hh hh] ~").gain(0.5).bank("RolandTR909"))
-$: s("cp ~ ~ cp").bank("RolandTR808").room(0.4).gain(0.4)
-$: note("a1 ~ ~ c2 ~ ~ e2 ~").s("sawtooth").lpf(700).resonance(5).gain(0.85)
-$: n("0 ~ 7 ~ 5 4 ~ 2").scale("A4:minor").s("square").hpf(400).room(0.25).gain(0.55).slow(2)
-$: note("a3*4").s("pad").lpf(1400).room(0.7).gain(0.25).slow(4)
-
-If a reference track is mentioned, use your knowledge of that track's actual BPM, key, drum machine style, bassline character, and signature sounds to guide every choice.
-
-OUTPUT FORMAT — return ONLY this JSON, no markdown fences, no extra text:
-{"genre":"...","bpm":130,"key":"A minor","mood":"short phrase","code":"ESCAPED_CODE_HERE"}
-
-CRITICAL: In the "code" value, escape every newline as \\n and every double quote inside patterns as \\". Example snippet: "setcps(130\\/120)\\n$: stack(s(\\"bd ~ sd ~\\").bank(\\"RolandTR909\\"))\\n$: note(\\"a2\\").s(\\"sawtooth\\")"`;
-
 let currentCode = '';
 
 document.getElementById('bpm-num').addEventListener('input', e => document.getElementById('bpm-range').value=e.target.value);
 document.getElementById('bpm-range').addEventListener('input', e => document.getElementById('bpm-num').value=e.target.value);
 
 async function generate() {
-  const prompt=document.getElementById('prompt').value.trim();
-  const genre=document.getElementById('genre').value;
-  const bpm=document.getElementById('bpm-num').value;
-  const keyRoot=document.getElementById('key-root').value;
-  const keyScale=document.getElementById('key-scale').value;
-  const url=document.getElementById('url-input').value.trim();
+  const prompt  = document.getElementById('prompt').value.trim().slice(0,300);
+  const genre   = document.getElementById('genre').value;
+  const bpm     = document.getElementById('bpm-num').value;
+  const keyRoot = document.getElementById('key-root').value;
+  const keyScale= document.getElementById('key-scale').value;
 
-  if(!prompt && !genre && !url){
-    document.getElementById('error-out').innerHTML='<div class="error-msg">// describe a vibe, pick a genre, or add a reference URL</div>';
+  if (!prompt && !genre && !audioAnalysis) {
+    document.getElementById('error-out').innerHTML='<div class="error-msg">// describe a vibe, pick a genre, or drop an audio file</div>';
     return;
   }
   const btn=document.getElementById('gen-btn'), status=document.getElementById('gen-status');
   btn.disabled=true; document.getElementById('error-out').innerHTML='';
-  const msgs=['// analyzing reference...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
+  const msgs=['// reading audio data...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
   let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
   const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1200);
 
-  let msg='';
-  if(url) msg+=`REFERENCE TRACK URL: ${url}\nUse your knowledge of this track — its BPM, key, drum style, bassline, and signature sounds — to guide the Strudel code as closely as possible.\n\n`;
-  if(prompt) msg+=`VIBE DESCRIPTION: ${prompt}\n`;
-  if(genre) msg+=`GENRE: ${genre}\n`;
-  msg+=`TARGET BPM: ${bpm}\n`;
-  if(keyRoot) msg+=`KEY ROOT: ${keyRoot}\n`;
-  if(keyScale) msg+=`SCALE: ${keyScale}\n`;
-  msg+=`\nGenerate the Strudel code now. Return ONLY the JSON object.`;
-
   try {
-    const res=await fetch('/api/generate',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:2000,
-        system:SYSTEM_PROMPT,
-        messages:[{role:'user',content:msg}]
-      })
+    const res = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis: audioAnalysis })
     });
-    const data=await res.json();
+    const data = await res.json();
     clearInterval(ticker); status.classList.remove('typing');
-    if(data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error(data.error.message);
 
-    // extract raw text safely
-    const raw = data.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('')
-      .trim();
-
-    // strip any accidental markdown fences
+    const raw = data.content.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
     const clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
 
     let parsed;
-    try {
-      parsed = JSON.parse(clean);
-    } catch(e) {
-      // try to extract JSON object if wrapped in extra text
-      const match = clean.match(/\{[\s\S]*\}/);
-      if(!match) throw new Error('Could not parse response as JSON');
-      parsed = JSON.parse(match[0]);
+    try { parsed = JSON.parse(clean); }
+    catch(e) {
+      const m = clean.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Could not parse JSON response');
+      parsed = JSON.parse(m[0]);
     }
 
-    // IMPORTANT: store raw code string — never the HTML-highlighted version
     currentCode = parsed.code;
     renderCode(currentCode);
     renderChips(parsed);
     loadStrudel(currentCode);
-    status.textContent='// pattern ready';
+    status.textContent = '// pattern ready';
   } catch(err) {
     clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
     document.getElementById('error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
     console.error(err);
   }
-  btn.disabled=false;
+  btn.disabled = false;
 }
 
 function renderChips(p) {
