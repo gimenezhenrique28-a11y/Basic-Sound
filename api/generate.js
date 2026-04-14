@@ -52,32 +52,38 @@ async function callClaude(system, messages, maxTokens, model, tools) {
 }
 
 async function researchTrack(trackQuery) {
-  const RESEARCH_SYSTEM = `You are a music analyst. Search for musical details about a track.
-Use web_search to find: BPM, key/scale, chord progression, bassline notes, drum machine model, kick/snare/hat patterns, synth descriptions, genre, mood.
-Search queries like: "[artist] [track] BPM key", "[artist] [track] chord progression", "[artist] [track] music theory".
-After searching output ONLY compact JSON, no markdown:
+  const RESEARCH_SYSTEM = `You are a music analyst. Use ONE web_search to find BPM, key, chords, bassline, drum machine, kick/snare/hat patterns, synths, genre, mood for this track.
+Search: "[artist] [track] BPM key chord progression music theory"
+Output ONLY compact JSON after searching, no markdown:
 {"bpm":N,"key":"A minor","chords":"Am-F-C-G","bassline":"a1 ~ c2 ~ e2 ~","drumMachine":"RolandTR909","kickPattern":"bd ~ bd ~","snarePattern":"~ sd ~ sd","hatPattern":"hh*8","synths":["detuned saw","square lead"],"genre":"Techno","mood":"dark","energy":"high"}`;
 
   const messages = [{ role:'user', content:`Research track: ${trackQuery}` }];
   const tools = [{ type:'web_search_20250305', name:'web_search' }];
-  let data = await callClaude(RESEARCH_SYSTEM, messages, 2000, 'claude-sonnet-4-5', tools);
 
-  const history = [...messages];
-  let rounds = 0;
-  while (data.stop_reason === 'tool_use' && rounds < 4) {
-    rounds++;
-    history.push({ role:'assistant', content:data.content });
-    const results = data.content.filter(b=>b.type==='tool_use').map(b=>({
-      type:'tool_result', tool_use_id:b.id, content:JSON.stringify(b.input)
-    }));
-    history.push({ role:'user', content:results });
-    data = await callClaude(RESEARCH_SYSTEM, history, 2000, 'claude-sonnet-4-5', tools);
-  }
+  // race against 8s timeout
+  const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
 
-  const raw = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try { return JSON.parse(match[0]); } catch { return null; }
+  const researchPromise = (async () => {
+    let data = await callClaude(RESEARCH_SYSTEM, messages, 1024, 'claude-haiku-4-5-20251001', tools);
+    const history = [...messages];
+    let rounds = 0;
+    while (data.stop_reason === 'tool_use' && rounds < 2) {
+      rounds++;
+      history.push({ role:'assistant', content:data.content });
+      const results = data.content.filter(b=>b.type==='tool_use').map(b=>({
+        type:'tool_result', tool_use_id:b.id, content:JSON.stringify(b.input)
+      }));
+      history.push({ role:'user', content:results });
+      data = await callClaude(RESEARCH_SYSTEM, history, 1024, 'claude-haiku-4-5-20251001', tools);
+    }
+    const raw = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try { return JSON.parse(match[0]); } catch { return null; }
+  })();
+
+  try { return await Promise.race([researchPromise, timeoutPromise]); }
+  catch { return null; }
 }
 
 const CODEGEN_SYSTEM = `You are a Strudel.cc pattern coder. Return ONLY valid JSON. No markdown, no explanation.

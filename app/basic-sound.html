@@ -788,12 +788,8 @@ async function generate() {
     ? ['// searching track info...','// reading chord data...','// mapping bassline...','// building patterns...','// finalizing code...']
     : ['// reading audio data...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
   let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
-  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1800);
-
-  try {
-    const res = await fetch('/api/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis: audioAnalysis, refUrl })
+  const t0 = Date.now();
+  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; const s=((Date.now()-t0)/1000).toFixed(0); status.textContent=`${msgs[mi]} ${s}s`; },900);
     });
     const data = await res.json();
     clearInterval(ticker); status.classList.remove('typing');
@@ -968,7 +964,8 @@ async function generateMobile() {
     ? ['// searching track...','// reading chords...','// mapping bassline...','// building patterns...','// finalizing...']
     : ['// building patterns...','// layering sounds...','// tuning bass...','// finalizing...','// done...'];
   let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
-  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; status.textContent=msgs[mi]; },1800);
+  const t0 = Date.now();
+  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; const s=((Date.now()-t0)/1000).toFixed(0); status.textContent=`${msgs[mi]} ${s}s`; },900);
 
   try {
     const res = await fetch('/api/generate', {
