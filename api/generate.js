@@ -2,193 +2,116 @@ const ALLOWED_GENRES = ['','House','Techno','Drum & Bass','Jungle','Dubstep','UK
 const ALLOWED_SCALES = ['','minor','major','dorian','phrygian','minor pentatonic','chromatic'];
 const ALLOWED_ROOTS  = ['','C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-function sanitizeStr(val, maxLen = 300) {
-  if (typeof val !== 'string') return '';
-  return val
-    .replace(/<[^>]*>/g, '')
-    .replace(/\[INST\]|\[\/INST\]/gi, '')
-    .replace(/###\s*(system|instruction|prompt)/gi, '')
-    .replace(/ignore previous instructions?/gi, '')
-    .replace(/you are now|pretend (you are|to be)/gi, '')
-    .slice(0, maxLen).trim();
-}
+const sanitizeStr = (v, n=300) => typeof v!=='string' ? '' : v
+  .replace(/<[^>]*>/g,'').replace(/\[INST\]|\[\/INST\]/gi,'')
+  .replace(/###\s*(system|instruction|prompt)/gi,'')
+  .replace(/ignore previous instructions?/gi,'')
+  .replace(/you are now|pretend (you are|to be)/gi,'')
+  .slice(0,n).trim();
 
-function sanitizeNum(val, min, max, fallback) {
-  const n = Number(val);
-  return (!isFinite(n) || n < min || n > max) ? fallback : Math.round(n);
-}
+const sanitizeNum = (v,mn,mx,fb) => { const n=Number(v); return(!isFinite(n)||n<mn||n>mx)?fb:Math.round(n); };
+const isValidUrl  = s => { try{const u=new URL(s);return u.protocol==='https:'||u.protocol==='http:';}catch{return false;} };
 
-function isValidUrl(str) {
-  try { const u = new URL(str); return u.protocol==='https:'||u.protocol==='http:'; }
-  catch { return false; }
-}
+const sanitizeCode = c => typeof c!=='string' ? '' : c
+  .replace(/"tok-[^"]*">/g,'').replace(/<\/span>/g,'').replace(/<span[^>]*>/g,'')
+  .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
 
-// Strip any HTML/span artifacts the model might have hallucinated into code
-function sanitizeCode(code) {
-  if (typeof code !== 'string') return '';
-  return code
-    .replace(/"tok-[^"]*">/g, '')   // "tok-fn"> etc
-    .replace(/<\/span>/g, '')
-    .replace(/<span[^>]*>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim();
-}
-
-async function callClaude(system, messages, maxTokens, model, tools) {
-  const body = { model, max_tokens: maxTokens, system, messages };
+const callClaude = async (system, messages, maxTokens=800, model='claude-haiku-4-5-20251001', tools=null) => {
+  const body = { model, max_tokens:maxTokens, system, messages };
   if (tools) body.tools = tools;
   const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify(body)
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify(body)
   });
   return r.json();
-}
+};
 
-async function researchTrack(trackQuery) {
-  const RESEARCH_SYSTEM = `You are a music analyst. Use ONE web_search to find BPM, key, chords, bassline, drum machine, kick/snare/hat patterns, synths, genre, mood for this track.
-Search: "[artist] [track] BPM key chord progression music theory"
-Output ONLY compact JSON after searching, no markdown:
-{"bpm":N,"key":"A minor","chords":"Am-F-C-G","bassline":"a1 ~ c2 ~ e2 ~","drumMachine":"RolandTR909","kickPattern":"bd ~ bd ~","snarePattern":"~ sd ~ sd","hatPattern":"hh*8","synths":["detuned saw","square lead"],"genre":"Techno","mood":"dark","energy":"high"}`;
-
-  const messages = [{ role:'user', content:`Research track: ${trackQuery}` }];
-  const tools = [{ type:'web_search_20250305', name:'web_search' }];
-
-  // race against 8s timeout
-  const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
-
-  const researchPromise = (async () => {
-    let data = await callClaude(RESEARCH_SYSTEM, messages, 1024, 'claude-haiku-4-5-20251001', tools);
-    const history = [...messages];
-    let rounds = 0;
-    while (data.stop_reason === 'tool_use' && rounds < 2) {
-      rounds++;
-      history.push({ role:'assistant', content:data.content });
-      const results = data.content.filter(b=>b.type==='tool_use').map(b=>({
-        type:'tool_result', tool_use_id:b.id, content:JSON.stringify(b.input)
-      }));
-      history.push({ role:'user', content:results });
-      data = await callClaude(RESEARCH_SYSTEM, history, 1024, 'claude-haiku-4-5-20251001', tools);
+// Research only runs when a URL or explicit track name is given — skip for vibe prompts
+async function researchTrack(query) {
+  const SYS = `Music analyst. ONE web_search for: BPM, key, chords, bassline, drum machine, kick/snare/hat, synths, genre, mood.
+After search output ONLY JSON: {"bpm":N,"key":"A minor","chords":"Am-F","bassline":"a1 ~ c2","drumMachine":"RolandTR909","kickPattern":"bd ~ bd ~","snarePattern":"~ sd ~ sd","hatPattern":"hh*8","synths":["saw"],"genre":"Techno","mood":"dark","energy":"high"}`;
+  const msgs = [{role:'user',content:`Track: ${query}`}];
+  const tools = [{type:'web_search_20250305',name:'web_search'}];
+  const timeout = new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),7000));
+  const work = (async()=>{
+    let d = await callClaude(SYS, msgs, 800, 'claude-haiku-4-5-20251001', tools);
+    if (d.stop_reason==='tool_use') {
+      const h=[...msgs,{role:'assistant',content:d.content}];
+      const tr=d.content.filter(b=>b.type==='tool_use').map(b=>({type:'tool_result',tool_use_id:b.id,content:JSON.stringify(b.input)}));
+      h.push({role:'user',content:tr});
+      d = await callClaude(SYS, h, 800, 'claude-haiku-4-5-20251001', tools);
     }
-    const raw = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try { return JSON.parse(match[0]); } catch { return null; }
+    const raw=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    const m=raw.match(/\{[\s\S]*\}/); if(!m) return null;
+    try{return JSON.parse(m[0]);}catch{return null;}
   })();
-
-  try { return await Promise.race([researchPromise, timeoutPromise]); }
-  catch { return null; }
+  try{return await Promise.race([work,timeout]);}catch{return null;}
 }
 
-const CODEGEN_SYSTEM = `You are a Strudel.cc pattern coder. Return ONLY valid JSON. No markdown, no explanation.
-
-STRUDEL SYNTAX — the ONLY valid patterns:
-  s("bd ~ sd ~").bank("RolandTR808")          // drums from sample bank
-  note("c2 eb2 g2").s("sawtooth")             // melodic with synth
-  n("0 2 4").scale("C4:minor").s("square")    // scale degrees
-  stack(s("bd").bank("RolandTR909"), s("hh").bank("RolandTR909"))  // layer drums
-
-FORBIDDEN — never use these:
-  sound(...)        // WRONG — use s(...)
-  .when(...)        // WRONG — does not exist in Strudel
-  .layer(...)       // WRONG — use stack() instead
-  .clip(...)        // WRONG
-  .begin(...)       // WRONG
-  .sustain(...)     // WRONG — use .legato() or .decay()
-  CamelCase methods // WRONG — all methods lowercase
-
-VALID EFFECTS (only these): .lpf(n) .hpf(n) .room(n) .gain(n) .delay(n) .speed(n) .fast(n) .slow(n) .rev() .every(n,x=>x) .degradeBy(n) .resonance(n) .bank("...")
-
-STRUCTURE (exactly 5 $: lines after setcps):
-setcps(BPM/120)
-$: stack(s("bd ~ bd ~").bank("RolandTR909"),s("~ sd ~ sd").bank("RolandTR909"),s("hh*8").gain(0.5).bank("RolandTR909"))
-$: s("cp ~ ~ ~").bank("RolandTR808").room(0.4).gain(0.4)
-$: note("c2 ~ eb2 ~ g2 ~").s("sawtooth").lpf(600).gain(0.8)
-$: n("0 ~ 4 5 ~ 7").scale("C4:minor").s("square").room(0.3).gain(0.5)
-$: note("c4").s("triangle").lpf(800).room(0.7).gain(0.2).slow(2)
-
-Use researched bassline notes and patterns when provided.
-Escape code for JSON: \\n between lines, \\" for quotes inside pattern strings.
-
-Return: {"genre":"...","bpm":N,"key":"...","mood":"...","code":"ESCAPED_STRUDEL_CODE"}`;
+// Minimal codegen prompt — examples cut to one, effects list trimmed
+const CODEGEN = `Strudel.cc coder. Return ONLY JSON, no markdown.
+Valid: s("bd ~ sd ~").bank("RolandTR909") | note("c2 eb2").s("sawtooth") | n("0 2 4").scale("C4:minor").s("square") | stack(...)
+Forbidden: sound() .when() .layer() .clip() .begin() .sustain() CamelCase
+Effects: .lpf .hpf .room .gain .delay .speed .fast .slow .rev .every .degradeBy .resonance .bank
+5 layers: setcps(B/120) then $:drums $:perc $:bass $:lead $:pad
+Use exact notes from track data when given. Escape JSON: \\n and \\"
+Return: {"genre":"","bpm":N,"key":"","mood":"","code":""}`;
 
 export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin','*');
-    res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers','Content-Type');
-    return res.status(200).end();
-  }
-  if (req.method !== 'POST') return res.status(405).end();
+  if (req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');return res.status(200).end();}
+  if (req.method!=='POST') return res.status(405).end();
   res.setHeader('Access-Control-Allow-Origin','*');
 
   try {
-    const body = req.body || {};
-    const prompt   = sanitizeStr(body.prompt, 300);
-    const genre    = ALLOWED_GENRES.includes(body.genre) ? body.genre : '';
-    const bpm      = sanitizeNum(body.bpm, 60, 200, 128);
-    const keyRoot  = ALLOWED_ROOTS.includes(body.keyRoot) ? body.keyRoot : '';
-    const keyScale = ALLOWED_SCALES.includes(body.keyScale) ? body.keyScale : '';
-    const refUrl   = (typeof body.refUrl==='string' && isValidUrl(body.refUrl)) ? body.refUrl.slice(0,200) : '';
+    const b = req.body||{};
+    const prompt   = sanitizeStr(b.prompt,300);
+    const genre    = ALLOWED_GENRES.includes(b.genre)?b.genre:'';
+    const bpm      = sanitizeNum(b.bpm,60,200,128);
+    const keyRoot  = ALLOWED_ROOTS.includes(b.keyRoot)?b.keyRoot:'';
+    const keyScale = ALLOWED_SCALES.includes(b.keyScale)?b.keyScale:'';
+    const refUrl   = (typeof b.refUrl==='string'&&isValidUrl(b.refUrl))?b.refUrl.slice(0,200):'';
 
-    let analysis = null;
-    if (body.analysis && typeof body.analysis === 'object') {
-      analysis = {
-        bpm:         sanitizeNum(body.analysis.bpm, 40, 220, bpm),
-        key:         sanitizeStr(body.analysis.key, 20),
-        beatPattern: sanitizeStr(body.analysis.beatPattern, 80),
-        bassContour: sanitizeStr(body.analysis.bassContour, 80),
-        energy:      sanitizeStr(body.analysis.energy, 20),
-      };
-    }
+    let analysis=null;
+    if(b.analysis&&typeof b.analysis==='object') analysis={
+      bpm:sanitizeNum(b.analysis.bpm,40,220,bpm),
+      key:sanitizeStr(b.analysis.key,20),
+      beatPattern:sanitizeStr(b.analysis.beatPattern,80),
+      bassContour:sanitizeStr(b.analysis.bassContour,80),
+      energy:sanitizeStr(b.analysis.energy,20),
+    };
 
-    if (!prompt && !genre && !analysis && !refUrl) {
-      return res.status(400).json({ error:{ message:'No valid input provided' } });
-    }
+    if(!prompt&&!genre&&!analysis&&!refUrl) return res.status(400).json({error:{message:'No input'}});
 
-    // Stage 1: research
-    let trackInfo = null;
-    const trackQuery = refUrl || (prompt.length > 3 ? prompt : null);
-    if (trackQuery) {
-      try { trackInfo = await researchTrack(trackQuery); } catch(e) { /* continue */ }
-    }
+    // Only research when there's an explicit URL — skip for plain vibe prompts (saves 3-5s)
+    let trackInfo=null;
+    if(refUrl) { try{trackInfo=await researchTrack(refUrl);}catch{} }
 
-    // Stage 2: codegen — build lean message from sanitized data only
-    const parts = [];
-    if (trackInfo) {
-      parts.push(`TRACK: bpm=${trackInfo.bpm} key="${trackInfo.key}" chords="${trackInfo.chords||''}" bassline="${trackInfo.bassline||''}" kick="${trackInfo.kickPattern||''}" snare="${trackInfo.snarePattern||''}" hats="${trackInfo.hatPattern||''}" drum="${trackInfo.drumMachine||'RolandTR909'}" synths="${(trackInfo.synths||[]).join(',')}" mood="${trackInfo.mood||''}" energy="${trackInfo.energy||''}"`)
-    }
-    if (analysis) parts.push(`AUDIO: bpm=${analysis.bpm} key=${analysis.key} beats=${analysis.beatPattern} energy=${analysis.energy}`);
-    if (prompt)   parts.push(`VIBE: ${prompt}`);
-    if (genre)    parts.push(`GENRE: ${genre}`);
-    if (!trackInfo && bpm) parts.push(`BPM: ${bpm}`);
-    if (keyRoot)  parts.push(`KEY: ${keyRoot}${keyScale?' '+keyScale:''}`);
-    parts.push('Return JSON only.');
+    // Build lean user message
+    const parts=[];
+    if(trackInfo) parts.push(`TRACK: bpm=${trackInfo.bpm} key="${trackInfo.key}" chords="${trackInfo.chords||''}" bassline="${trackInfo.bassline||''}" kick="${trackInfo.kickPattern||''}" snare="${trackInfo.snarePattern||''}" hats="${trackInfo.hatPattern||''}" drum="${trackInfo.drumMachine||'RolandTR909'}" synths="${(trackInfo.synths||[]).join(',')}" mood="${trackInfo.mood||''}" energy="${trackInfo.energy||''}"`);
+    if(analysis) parts.push(`AUDIO: bpm=${analysis.bpm} key=${analysis.key} beats=${analysis.beatPattern} energy=${analysis.energy}`);
+    if(prompt)   parts.push(`VIBE: ${prompt}`);
+    if(genre)    parts.push(`GENRE: ${genre}`);
+    if(!trackInfo&&bpm) parts.push(`BPM: ${bpm}`);
+    if(keyRoot)  parts.push(`KEY: ${keyRoot}${keyScale?' '+keyScale:''}`);
+    parts.push('JSON only.');
 
-    const codeData = await callClaude(CODEGEN_SYSTEM, [{ role:'user', content:parts.join('\n') }], 1024, 'claude-haiku-4-5-20251001');
+    const codeData = await callClaude(CODEGEN,[{role:'user',content:parts.join('\n')}],800);
 
-    // Sanitize code in response before sending to client
-    if (codeData.content) {
-      codeData.content = codeData.content.map(block => {
-        if (block.type !== 'text') return block;
-        try {
-          const clean = block.text.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
-          const parsed = JSON.parse(clean.match(/\{[\s\S]*\}/)[0]);
-          parsed.code = sanitizeCode(parsed.code);
-          return { ...block, text: JSON.stringify(parsed) };
-        } catch { return block; }
-      });
-    }
+    if(codeData.content) codeData.content=codeData.content.map(block=>{
+      if(block.type!=='text') return block;
+      try{
+        const clean=block.text.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
+        const parsed=JSON.parse(clean.match(/\{[\s\S]*\}/)[0]);
+        parsed.code=sanitizeCode(parsed.code);
+        return{...block,text:JSON.stringify(parsed)};
+      }catch{return block;}
+    });
 
-    codeData._trackInfo = trackInfo;
+    codeData._trackInfo=trackInfo;
     res.status(200).json(codeData);
   } catch(err) {
-    res.status(500).json({ error:{ message:err.message } });
+    res.status(500).json({error:{message:err.message}});
   }
 }

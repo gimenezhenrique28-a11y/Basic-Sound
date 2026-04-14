@@ -235,7 +235,58 @@ pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#
 
 @media(min-width:769px){.m-shell{display:none}}
 
-/* ===== FX POPUP ===== */
+/* ===== LOADING OVERLAY ===== */
+.loader-overlay{
+  position:fixed;inset:0;z-index:2000;
+  background:rgba(8,8,8,.96);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.loader-overlay.visible{opacity:1;pointer-events:all}
+.loader-bars{display:flex;align-items:flex-end;gap:5px;height:60px}
+.loader-bar{
+  width:5px;background:var(--acid);border-radius:2px 2px 0 0;
+  transform-origin:bottom;
+  animation:lbar 1s ease-in-out infinite;
+}
+.loader-bar:nth-child(1){animation-delay:0s}
+.loader-bar:nth-child(2){animation-delay:.08s}
+.loader-bar:nth-child(3){animation-delay:.16s}
+.loader-bar:nth-child(4){animation-delay:.24s}
+.loader-bar:nth-child(5){animation-delay:.32s}
+.loader-bar:nth-child(6){animation-delay:.40s}
+.loader-bar:nth-child(7){animation-delay:.48s}
+.loader-bar:nth-child(8){animation-delay:.56s}
+.loader-bar:nth-child(9){animation-delay:.64s}
+.loader-bar:nth-child(10){animation-delay:.72s}
+.loader-bar:nth-child(11){animation-delay:.80s}
+.loader-bar:nth-child(12){animation-delay:.88s}
+@keyframes lbar{
+  0%,100%{height:8px;opacity:.3}
+  50%{height:52px;opacity:1}
+}
+.loader-text-wrap{text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.loader-phase{
+  font-family:'Space Mono',monospace;font-size:11px;font-weight:700;
+  letter-spacing:.25em;color:var(--acid);text-transform:uppercase;
+  min-height:16px;
+}
+.loader-detail{
+  font-family:'Fragment Mono',monospace;font-size:10px;
+  color:var(--muted);letter-spacing:.12em;min-height:14px;
+}
+.loader-elapsed{
+  font-family:'Fragment Mono',monospace;font-size:9px;
+  color:var(--muted2);letter-spacing:.1em;
+}
+.loader-bar-track{
+  width:220px;height:2px;background:var(--border2);margin-top:4px;overflow:hidden;
+}
+.loader-bar-fill{
+  height:100%;background:var(--acid);width:0%;
+  transition:width .6s ease;
+}
+
 .fx-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;
   display:flex;align-items:center;justify-content:center;
@@ -534,6 +585,24 @@ input[type="range"].fx-slider::-moz-range-thumb{
     </button>
   </div>
 </div>
+<!-- LOADING OVERLAY -->
+<div class="loader-overlay" id="loader-overlay">
+  <div class="loader-bars">
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+  </div>
+  <div class="loader-text-wrap">
+    <div class="loader-phase" id="loader-phase">GENERATING</div>
+    <div class="loader-detail" id="loader-detail"></div>
+    <div class="loader-bar-track"><div class="loader-bar-fill" id="loader-fill"></div></div>
+    <div class="loader-elapsed" id="loader-elapsed"></div>
+  </div>
+</div>
+
 <div class="fx-overlay" id="fx-overlay" onclick="overlayClick(event)">
   <div class="fx-panel">
     <div class="fx-panel-header">
@@ -826,44 +895,38 @@ async function generate() {
   const bpm     = document.getElementById('bpm-num').value;
   const keyRoot = document.getElementById('key-root').value;
   const keyScale= document.getElementById('key-scale').value;
+  const refUrl  = document.getElementById('url-input').value.trim();
 
   if (!prompt && !genre && !audioAnalysis) {
     document.getElementById('error-out').innerHTML='<div class="error-msg">// describe a vibe, pick a genre, or drop an audio file</div>';
     return;
   }
-  const btn=document.getElementById('gen-btn'), status=document.getElementById('gen-status');
-  btn.disabled=true; document.getElementById('error-out').innerHTML='';
-  const refUrl = document.getElementById('url-input').value.trim();
-  const hasRef = refUrl.length > 0;
-  const msgs = hasRef
-    ? ['// searching track info...','// reading chord data...','// mapping bassline...','// building patterns...','// finalizing code...']
-    : ['// reading audio data...','// building drum patterns...','// layering textures...','// tuning the bassline...','// finalizing code...'];
-  let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
-  const t0 = Date.now();
-  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; const s=((Date.now()-t0)/1000).toFixed(0); status.textContent=`${msgs[mi]} ${s}s`; },900);
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  document.getElementById('error-out').innerHTML='';
+  showLoader(refUrl.length > 0);
+
+  try {
+    const res = await fetch('/api/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis:audioAnalysis, refUrl })
     });
     const data = await res.json();
-    clearInterval(ticker); status.classList.remove('typing');
     if (data.error) throw new Error(data.error.message);
 
     const raw = data.content.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
     const clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-
     let parsed;
     try { parsed = JSON.parse(clean); }
-    catch(e) {
-      const m = clean.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error('Could not parse JSON response');
-      parsed = JSON.parse(m[0]);
-    }
+    catch(e) { const m=clean.match(/\{[\s\S]*\}/); if(!m) throw new Error('Bad JSON'); parsed=JSON.parse(m[0]); }
 
     currentCode = parsed.code;
     renderCode(currentCode);
     renderChips(parsed, data._trackInfo);
     loadStrudel(currentCode);
-    status.textContent = data._trackInfo ? '// pattern ready · researched' : '// pattern ready';
+    hideLoader(true);
   } catch(err) {
-    clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
+    hideLoader(false);
     document.getElementById('error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
     console.error(err);
   }
@@ -959,6 +1022,64 @@ function openStrudel() {
   window.open(`https://strudel.cc/#${encoded}`,'_blank');
 }
 
+// ---- LOADER ----
+const PHASES_VIBE = [
+  {phase:'ANALYZING VIBE',   detail:'reading your description...',  pct:15},
+  {phase:'BUILDING DRUMS',   detail:'crafting rhythm patterns...',   pct:35},
+  {phase:'WRITING BASSLINE', detail:'locking in the groove...',      pct:55},
+  {phase:'LAYERING SOUNDS',  detail:'adding textures and leads...',  pct:75},
+  {phase:'FINALIZING CODE',  detail:'encoding strudel patterns...',  pct:92},
+];
+const PHASES_REF = [
+  {phase:'RESEARCHING TRACK',detail:'searching music databases...',  pct:20},
+  {phase:'READING THEORY',   detail:'extracting chords & key...',    pct:42},
+  {phase:'MAPPING BASSLINE', detail:'transcribing note sequence...', pct:62},
+  {phase:'WRITING CODE',     detail:'translating to strudel...',     pct:82},
+  {phase:'FINALIZING',       detail:'cleaning up patterns...',       pct:94},
+];
+
+let loaderTimer = null;
+let loaderElapsedTimer = null;
+
+function showLoader(hasRef) {
+  const overlay = document.getElementById('loader-overlay');
+  overlay.classList.add('visible');
+  const phases = hasRef ? PHASES_REF : PHASES_VIBE;
+  let i = 0;
+  const t0 = Date.now();
+
+  // update elapsed every second
+  loaderElapsedTimer = setInterval(() => {
+    const s = ((Date.now()-t0)/1000).toFixed(0);
+    document.getElementById('loader-elapsed').textContent = `${s}s`;
+  }, 500);
+
+  const tick = () => {
+    const p = phases[Math.min(i, phases.length-1)];
+    document.getElementById('loader-phase').textContent = p.phase;
+    document.getElementById('loader-detail').textContent = p.detail;
+    document.getElementById('loader-fill').style.width = p.pct + '%';
+    i++;
+  };
+  tick();
+  loaderTimer = setInterval(() => {
+    if (i < phases.length) tick();
+  }, hasRef ? 2200 : 1400);
+}
+
+function hideLoader(success) {
+  clearInterval(loaderTimer);
+  clearInterval(loaderElapsedTimer);
+  if (success) {
+    document.getElementById('loader-phase').textContent = 'PATTERN READY';
+    document.getElementById('loader-detail').textContent = 'loading into strudel...';
+    document.getElementById('loader-fill').style.width = '100%';
+    setTimeout(() => document.getElementById('loader-overlay').classList.remove('visible'), 600);
+  } else {
+    document.getElementById('loader-overlay').classList.remove('visible');
+  }
+}
+
 // ---- MOBILE ----
 const isMobile = () => window.innerWidth <= 768;
 
@@ -1008,15 +1129,10 @@ async function generateMobile() {
     switchTab('code'); return;
   }
 
-  const btn=document.getElementById('m-gen-btn'), status=document.getElementById('m-gen-status');
-  btn.disabled=true; document.getElementById('m-error-out').innerHTML='';
-  const hasRef = refUrl.length > 0;
-  const msgs = hasRef
-    ? ['// searching track...','// reading chords...','// mapping bassline...','// building patterns...','// finalizing...']
-    : ['// building patterns...','// layering sounds...','// tuning bass...','// finalizing...','// done...'];
-  let mi=0; status.textContent=msgs[0]; status.classList.add('typing');
-  const t0 = Date.now();
-  const ticker=setInterval(()=>{ mi=(mi+1)%msgs.length; const s=((Date.now()-t0)/1000).toFixed(0); status.textContent=`${msgs[mi]} ${s}s`; },900);
+  const btn = document.getElementById('m-gen-btn');
+  btn.disabled = true;
+  document.getElementById('m-error-out').innerHTML='';
+  showLoader(refUrl.length > 0);
 
   try {
     const res = await fetch('/api/generate', {
@@ -1024,7 +1140,6 @@ async function generateMobile() {
       body: JSON.stringify({ prompt, genre, bpm, keyRoot, keyScale, analysis:audioAnalysis, refUrl })
     });
     const data = await res.json();
-    clearInterval(ticker); status.classList.remove('typing');
     if (data.error) throw new Error(data.error.message);
 
     const raw = data.content.filter(b=>b.type==='text').map(b=>b.text).join('').trim();
@@ -1042,21 +1157,19 @@ async function generateMobile() {
       .filter(Boolean).map(i=>`<span class="chip">${i}</span>`).join('');
 
     const encoded = btoa(unescape(encodeURIComponent(currentCode)));
-    // store encoded for tap handlers
     window._mStrudelEncoded = encoded;
-    // show tap-to-play prompt — don't auto-load iframe (blocks audio on iOS/Android)
     document.getElementById('m-player-empty').style.display='none';
     document.getElementById('m-strudel-frame').style.display='none';
     document.getElementById('m-play-prompt').classList.remove('hidden');
 
-    status.textContent='// pattern ready';
+    hideLoader(true);
     switchTab('player');
   } catch(err) {
-    clearInterval(ticker); status.classList.remove('typing'); status.textContent='';
+    hideLoader(false);
     document.getElementById('m-error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
     switchTab('code');
   }
-  btn.disabled=false;
+  btn.disabled = false;
 }
 
 function mobilePlayTap() {
