@@ -1187,7 +1187,7 @@ function mobileLoadIframe() {
   document.getElementById('m-play-prompt').classList.add('hidden');
 }
 
-
+function copyCodeMobile() {
   if (!currentCode) return;
   navigator.clipboard.writeText(currentCode).then(()=>{
     const btn=document.getElementById('m-copy-btn');
