@@ -16,7 +16,20 @@ const sanitizeCode = c => typeof c!=='string' ? '' : c
   .replace(/"tok-[^"]*">/g,'').replace(/<\/span>/g,'').replace(/<span[^>]*>/g,'')
   .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
 
-const callClaude = async (system, messages, maxTokens=800, model='claude-haiku-4-5-20251001', tools=null) => {
+function validateCode(code) {
+  if (!code || typeof code !== 'string') return false;
+  // must start with setcps
+  if (!code.trim().startsWith('setcps(')) return false;
+  // must have at least one $: line
+  if (!code.includes('$:')) return false;
+  // reject pipe-stack syntax
+  if (/^\s*\|/m.test(code)) return false;
+  // reject sound() calls
+  if (/\bsound\s*\(/.test(code)) return false;
+  // reject .when( .layer( .clip( .begin(
+  if (/\.(when|layer|clip|begin)\s*\(/.test(code)) return false;
+  return true;
+}
   const body = { model, max_tokens:maxTokens, system, messages };
   if (tools) body.tools = tools;
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -51,12 +64,32 @@ After search output ONLY JSON: {"bpm":N,"key":"A minor","chords":"Am-F","basslin
 
 // Minimal codegen prompt — examples cut to one, effects list trimmed
 const CODEGEN = `Strudel.cc coder. Return ONLY JSON, no markdown.
-Valid: s("bd ~ sd ~").bank("RolandTR909") | note("c2 eb2").s("sawtooth") | n("0 2 4").scale("C4:minor").s("square") | stack(...)
-Forbidden: sound() .when() .layer() .clip() .begin() .sustain() CamelCase
-Effects: .lpf .hpf .room .gain .delay .speed .fast .slow .rev .every .degradeBy .resonance .bank
-5 layers: setcps(B/120) then $:drums $:perc $:bass $:lead $:pad
-Use exact notes from track data when given. Escape JSON: \\n and \\"
-Return: {"genre":"","bpm":N,"key":"","mood":"","code":""}`;
+
+CORRECT syntax only:
+$: stack(s("bd ~ bd ~").bank("RolandTR909"),s("~ sd ~ sd").bank("RolandTR909"),s("hh*8").gain(0.4).bank("RolandTR909"))
+$: s("cp ~ ~ ~").bank("RolandTR808").room(0.3).gain(0.4)
+$: note("c2 ~ eb2 ~ g2 ~").s("sawtooth").lpf(600).gain(0.8)
+$: n("0 ~ 4 5 ~ 7").scale("C4:minor").s("square").room(0.3).gain(0.5)
+$: note("c4").s("triangle").lpf(800).room(0.7).gain(0.2).slow(2)
+
+BANNED — never output these:
+| (pipe character for stacking)    — WRONG, use stack() with commas
+$:drums / $:bass / $:lead labels   — WRONG, just use $: 
+sound(...)                         — WRONG, use s(...)
+.when() .layer() .clip() .begin()  — WRONG, don't exist
+CamelCase methods                  — WRONG
+
+RULES:
+- First line: setcps(BPM/120)
+- Exactly 5 lines starting with $:
+- Each $: line is self-contained, no continuation lines
+- Drums always use stack() on ONE $: line
+- Effects: .lpf .hpf .room .gain .delay .speed .fast .slow .rev .every .degradeBy .resonance .bank
+- Note names lowercase: c2 eb3 f#4
+- Escape for JSON: \\n between lines, \\" for quotes inside patterns
+- Use exact notes/patterns from track data when provided
+
+Return: {"genre":"","bpm":N,"key":"","mood":"","code":"setcps(...)\\n$: stack(...)\\n$: ..."}`;
 
 export default async function handler(req, res) {
   if (req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');return res.status(200).end();}
@@ -97,20 +130,31 @@ export default async function handler(req, res) {
     if(keyRoot)  parts.push(`KEY: ${keyRoot}${keyScale?' '+keyScale:''}`);
     parts.push('JSON only.');
 
-    const codeData = await callClaude(CODEGEN,[{role:'user',content:parts.join('\n')}],800);
+    let codeData = await callClaude(CODEGEN,[{role:'user',content:parts.join('\n')}],900);
 
-    if(codeData.content) codeData.content=codeData.content.map(block=>{
-      if(block.type!=='text') return block;
-      try{
-        const clean=block.text.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
-        const parsed=JSON.parse(clean.match(/\{[\s\S]*\}/)[0]);
-        parsed.code=sanitizeCode(parsed.code);
-        return{...block,text:JSON.stringify(parsed)};
-      }catch{return block;}
-    });
+    // validate — if code has pipe syntax or banned patterns, retry once with explicit correction
+    const extractParsed = (d) => {
+      try {
+        const raw=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+        const clean=raw.replace(/^```json\s*/,'').replace(/\s*```$/,'').trim();
+        const m=clean.match(/\{[\s\S]*\}/); if(!m) return null;
+        return JSON.parse(m[0]);
+      } catch { return null; }
+    };
 
-    codeData._trackInfo=trackInfo;
-    res.status(200).json(codeData);
+    let parsed = extractParsed(codeData);
+    if (!parsed || !validateCode(sanitizeCode(parsed.code||''))) {
+      // retry with explicit correction message
+      const retryMsg = parts.join('\n') + '\n\nCRITICAL: Do NOT use | pipe characters. Do NOT use $:drums $:bass labels. Each layer must be $: stack(...) or $: note(...) — one self-contained line. JSON only.';
+      codeData = await callClaude(CODEGEN,[{role:'user',content:retryMsg}],900);
+      parsed = extractParsed(codeData);
+    }
+
+    if (!parsed) return res.status(500).json({error:{message:'Failed to generate valid code'}});
+    parsed.code = sanitizeCode(parsed.code||'');
+
+    const response = { content:[{type:'text',text:JSON.stringify(parsed)}], _trackInfo:trackInfo };
+    res.status(200).json(response);
   } catch(err) {
     res.status(500).json({error:{message:err.message}});
   }
