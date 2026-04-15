@@ -637,9 +637,9 @@ input[type="range"].fx-slider::-moz-range-thumb{
       <div class="slider-cell">
         <div class="slider-header">
           <div class="slider-name">Master Gain</div>
-          <div class="slider-val" id="sv-gain">0.80</div>
+          <div class="slider-val" id="sv-gain">1.00</div>
         </div>
-        <input type="range" class="fx-slider" id="sl-gain" min="0" max="1" step="0.01" value="0.80"
+        <input type="range" class="fx-slider" id="sl-gain" min="0" max="1" step="0.01" value="1.00"
           oninput="document.getElementById('sv-gain').textContent=parseFloat(this.value).toFixed(2)">
       </div>
       <div class="slider-cell">
@@ -743,21 +743,21 @@ function getFX() {
 
 function buildFXChain() {
   const fx=getFX();
+  // only include effects that differ from neutral defaults
   return [
-    fx.filter < 9500 ? `.lpf(${Math.round(fx.filter)})` : '',
-    fx.resonance > 0.05 ? `.resonance(${fx.resonance.toFixed(2)})` : '',
-    fx.room > 0.05 ? `.room(${fx.room.toFixed(2)})` : '',
-    fx.dist > 0.05 ? `.distort(${fx.dist.toFixed(2)})` : '',
-    `.gain(${fx.gain.toFixed(2)})`,
-    fx.swing > 0.01 ? `.swing(${fx.swing.toFixed(2)})` : ''
+    fx.filter < 9500      ? `.lpf(${Math.round(fx.filter)})` : '',
+    fx.resonance > 0.05   ? `.resonance(${fx.resonance.toFixed(2)})` : '',
+    fx.room > 0.05        ? `.room(${fx.room.toFixed(2)})` : '',
+    fx.dist > 0.05        ? `.distort(${fx.dist.toFixed(2)})` : '',
+    fx.gain < 0.99        ? `.gain(${fx.gain.toFixed(2)})` : '',  // skip if near 1.0
+    fx.swing > 0.01       ? `.swing(${fx.swing.toFixed(2)})` : ''
   ].join('');
 }
 
 function applyFXToCode(code) {
-  // strip existing managed effects
   let out = code.replace(/\.(lpf|hpf|resonance|room|distort|gain|swing)\([^)]*\)/g, '');
-  // append fx chain to lines that start with $:
   const chain = buildFXChain();
+  if (!chain) return out; // nothing to apply
   out = out.replace(/^(\$:.*)/gm, l => l.trimEnd() + chain);
   return out;
 }
@@ -765,6 +765,8 @@ function applyFXToCode(code) {
 function applyFX() {
   if(!currentCode){ closeFX(); return; }
   const modified = applyFXToCode(currentCode);
+  // keep code panel + currentCode in sync so copy matches what plays
+  currentCode = modified;
   renderCode(modified);
   loadStrudel(modified);
   closeFX();
@@ -777,7 +779,7 @@ function resetFX() {
     c.dataset.val=v; drawKnob(c,v);
     document.getElementById('kv-'+k).textContent=knobLabel(k,v);
   });
-  document.getElementById('sl-gain').value=0.8; document.getElementById('sv-gain').textContent='0.80';
+  document.getElementById("sl-gain").value=1.0; document.getElementById('sv-gain').textContent='1.00';
   document.getElementById('sl-swing').value=0; document.getElementById('sv-swing').textContent='0.00';
 }
 
