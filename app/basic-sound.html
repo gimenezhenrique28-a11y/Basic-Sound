@@ -342,6 +342,48 @@ input[type="range"].fx-slider::-moz-range-thumb{
 .fx-apply:hover{background:#d9ff1a}
 .fx-reset{background:none;border:1px solid var(--border3);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.12em;padding:7px 14px;cursor:pointer;transition:all .15s}
 .fx-reset:hover{border-color:var(--muted);color:var(--text)}
+
+/* ===== ONBOARDING OVERLAY ===== */
+.ob-overlay{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.ob-overlay.visible{opacity:1;pointer-events:all}
+.ob-panel{background:var(--bg3);border:1px solid var(--border3);width:420px;max-width:92vw;padding:32px 28px}
+.ob-logo{font-family:'Space Mono',monospace;font-weight:700;font-size:18px;letter-spacing:.15em;color:var(--acid);margin-bottom:6px}
+.ob-tagline{font-size:11px;color:var(--muted);letter-spacing:.1em;margin-bottom:24px;line-height:1.6}
+.ob-field{margin-bottom:14px}
+.ob-label{font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+.ob-input{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Fragment Mono',monospace;font-size:14px;padding:10px 11px;outline:none;transition:border-color .15s}
+.ob-input:focus{border-color:var(--acid-dim)}
+.ob-input::placeholder{color:var(--muted)}
+.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ob-btn{width:100%;background:var(--acid);color:#000;border:none;font-family:'Space Mono',monospace;font-weight:700;font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:14px;cursor:pointer;margin-top:20px;transition:background .1s}
+.ob-btn:hover{background:#d9ff1a}
+.ob-btn:disabled{background:var(--muted2);color:var(--muted);cursor:not-allowed}
+.ob-skip{display:block;text-align:center;font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:10px;cursor:pointer;text-decoration:none;transition:color .15s}
+.ob-skip:hover{color:var(--text)}
+.ob-note{font-size:9px;color:var(--muted2);letter-spacing:.08em;text-align:center;margin-top:16px;line-height:1.6}
+
+/* ===== OPEN SOURCE MENU ===== */
+.os-overlay{position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.os-overlay.open{opacity:1;pointer-events:all}
+.os-panel{background:var(--bg3);border:1px solid var(--border3);width:480px;max-width:92vw;max-height:85vh;overflow-y:auto}
+.os-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg2)}
+.os-title{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.25em;color:var(--acid);text-transform:uppercase}
+.os-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 2px;font-family:'Fragment Mono',monospace}
+.os-close:hover{color:var(--text)}
+.os-section{padding:18px 20px;border-bottom:1px solid var(--border)}
+.os-section:last-child{border-bottom:none}
+.os-section-label{font-size:9px;letter-spacing:.2em;color:var(--acid-dim);text-transform:uppercase;margin-bottom:10px}
+.os-section p{font-size:11px;color:var(--muted);line-height:1.7;letter-spacing:.04em}
+.os-link{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border2);margin-top:8px;background:var(--bg2);cursor:pointer;transition:border-color .15s;text-decoration:none}
+.os-link:hover{border-color:var(--acid-dim)}
+.os-link-text{font-size:11px;color:var(--text);letter-spacing:.06em}
+.os-link-arrow{font-size:11px;color:var(--muted)}
+.os-skill-box{background:var(--bg2);border:1px solid var(--border2);padding:12px 14px;margin-top:8px;font-family:'Fragment Mono',monospace;font-size:10px;color:var(--acid-dim);line-height:1.7;max-height:140px;overflow-y:auto}
+.os-copy-btn{width:100%;background:none;border:1px solid var(--border2);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.12em;padding:8px;cursor:pointer;margin-top:8px;transition:all .15s;text-transform:uppercase}
+.os-copy-btn:hover{border-color:var(--acid-dim);color:var(--acid)}
+.menu-btn{background:none;border:1px solid var(--border3);color:var(--muted);font-family:'Fragment Mono',monospace;font-size:10px;letter-spacing:.15em;padding:5px 12px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.menu-btn:hover{border-color:var(--acid-dim);color:var(--acid)}
+
 </style>
 </head>
 <body>
@@ -350,8 +392,81 @@ input[type="range"].fx-slider::-moz-range-thumb{
   <div class="status-dot"></div>
   <div class="logo">Basic Sound</div>
   <div class="logo-sub">STRUDEL LIVE CODE ENGINE</div>
+  <button class="menu-btn" onclick="openOS()">☰ OPEN SOURCE</button>
   <button class="fx-btn" id="fx-toggle-btn" onclick="toggleFX()">⬡ FX CONTROLS</button>
 </header>
+
+<!-- ONBOARDING OVERLAY -->
+<div class="ob-overlay" id="ob-overlay">
+  <div class="ob-panel">
+    <div class="ob-logo">Basic Sound</div>
+    <div class="ob-tagline">open source strudel music generator · drop a vibe, get live code<br>no account needed — just tell us who you are</div>
+    <div class="ob-row">
+      <div class="ob-field">
+        <div class="ob-label">First name *</div>
+        <input class="ob-input" id="ob-name" type="text" placeholder="Henrique" autocomplete="given-name"/>
+      </div>
+      <div class="ob-field">
+        <div class="ob-label">Surname</div>
+        <input class="ob-input" id="ob-surname" type="text" placeholder="Gimenez" autocomplete="family-name"/>
+      </div>
+    </div>
+    <div class="ob-field">
+      <div class="ob-label">Email *</div>
+      <input class="ob-input" id="ob-email" type="email" placeholder="you@example.com" autocomplete="email"/>
+    </div>
+    <div class="ob-field">
+      <div class="ob-label">Phone (optional)</div>
+      <input class="ob-input" id="ob-phone" type="tel" placeholder="+44 7700 000000" autocomplete="tel"/>
+    </div>
+    <button class="ob-btn" id="ob-btn" onclick="submitOnboarding()">LET'S MAKE MUSIC ▶</button>
+    <a class="ob-skip" onclick="skipOnboarding()">skip for now</a>
+    <div class="ob-note">your info is stored securely and never sold.<br>this project is open source — help us build the dataset.</div>
+  </div>
+</div>
+
+<!-- OPEN SOURCE OVERLAY -->
+<div class="os-overlay" id="os-overlay" onclick="osOverlayClick(event)">
+  <div class="os-panel">
+    <div class="os-header">
+      <div class="os-title">☰ Open Source</div>
+      <button class="os-close" onclick="closeOS()">✕</button>
+    </div>
+    <div class="os-section">
+      <div class="os-section-label">About</div>
+      <p>Basic Sound is an open source electronic music generator. Drop a vibe, get Strudel live code. Fork it, extend it, make it yours.</p>
+      <a class="os-link" href="https://github.com/gimenezhenrique28-a11y/Basic-Sound" target="_blank">
+        <span class="os-link-text">⚡ GitHub — gimenezhenrique28-a11y/Basic-Sound</span>
+        <span class="os-link-arrow">↗</span>
+      </a>
+    </div>
+    <div class="os-section">
+      <div class="os-section-label">Claude Code Skill</div>
+      <p>Use this skill in your own Claude Code setup to generate Strudel patterns from any prompt. Copy the skill below or download from GitHub.</p>
+      <div class="os-skill-box" id="os-skill-preview">loading skill...</div>
+      <button class="os-copy-btn" onclick="copySkill()">COPY SKILL.MD</button>
+    </div>
+    <div class="os-section">
+      <div class="os-section-label">Learn Strudel</div>
+      <a class="os-link" href="https://strudel.cc" target="_blank">
+        <span class="os-link-text">strudel.cc — live code music in the browser</span>
+        <span class="os-link-arrow">↗</span>
+      </a>
+      <a class="os-link" href="https://strudel.cc/learn/getting-started/" target="_blank">
+        <span class="os-link-text">Strudel docs & tutorials</span>
+        <span class="os-link-arrow">↗</span>
+      </a>
+    </div>
+    <div class="os-section">
+      <div class="os-section-label">Support the project</div>
+      <p>Basic Sound is free and open source. If it's useful to you, consider supporting future development.</p>
+      <a class="os-link" href="https://ko-fi.com" target="_blank">
+        <span class="os-link-text">☕ Buy us a coffee on Ko-fi</span>
+        <span class="os-link-arrow">↗</span>
+      </a>
+    </div>
+  </div>
+</div>
 
 <div class="layout">
   <div class="left">
@@ -582,6 +697,9 @@ input[type="range"].fx-slider::-moz-range-thumb{
     </button>
     <button class="m-tab" id="mtab-fx" onclick="toggleFX()">
       <div class="m-tab-icon">⬡</div>FX
+    </button>
+    <button class="m-tab" onclick="openOS()">
+      <div class="m-tab-icon">☰</div>OSS
     </button>
   </div>
 </div>
@@ -906,6 +1024,7 @@ async function generate() {
   const btn = document.getElementById('gen-btn');
   btn.disabled = true;
   document.getElementById('error-out').innerHTML='';
+  const t0gen = Date.now();
   showLoader(refUrl.length > 0);
 
   try {
@@ -927,6 +1046,7 @@ async function generate() {
     renderChips(parsed, data._trackInfo);
     loadStrudel(currentCode);
     hideLoader(true);
+    logGeneration({prompt,genre,bpm,keyRoot,keyScale,refUrl,analysis:audioAnalysis}, {...parsed,_trackInfo:data._trackInfo}, Date.now()-t0gen);
   } catch(err) {
     hideLoader(false);
     document.getElementById('error-out').innerHTML=`<div class="error-msg">// error: ${err.message}</div>`;
@@ -1134,6 +1254,7 @@ async function generateMobile() {
   const btn = document.getElementById('m-gen-btn');
   btn.disabled = true;
   document.getElementById('m-error-out').innerHTML='';
+  const t0gen = Date.now();
   showLoader(refUrl.length > 0);
 
   try {
@@ -1165,6 +1286,7 @@ async function generateMobile() {
     document.getElementById('m-play-prompt').classList.remove('hidden');
 
     hideLoader(true);
+    logGeneration({prompt,genre,bpm,keyRoot,keyScale,refUrl,analysis:audioAnalysis}, {...parsed,_trackInfo:data._trackInfo}, Date.now()-t0gen);
     switchTab('player');
   } catch(err) {
     hideLoader(false);
@@ -1202,6 +1324,108 @@ function openStrudelMobile() {
   const encoded = btoa(unescape(encodeURIComponent(currentCode)));
   window.open(`https://strudel.cc/#${encoded}`,'_blank');
 }
+
+// ---- SUPABASE DATA LAYER ----
+const SB_URL = 'https://yfhwmbywrgzkdddwddtd.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmaHdtYnl3cmd6a2RkZHdkZHRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMDE2MTcsImV4cCI6MjA4NjY3NzYxN30.v8ZOqCoRUMACt_itCnrnzVCz21-M_ZdWHbQXI5Db9wc';
+
+const sbInsert = async (table, data) => {
+  try {
+    await fetch(`${SB_URL}/rest/v1/${table}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Prefer':'return=minimal'},
+      body:JSON.stringify(data)
+    });
+  } catch(e) { console.warn('sb insert failed:',e); }
+};
+
+const SESSION_ID = (() => {
+  let id = sessionStorage.getItem('bs_session');
+  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem('bs_session', id); }
+  return id;
+})();
+
+let BS_USER_ID = localStorage.getItem('bs_user_id') || null;
+
+async function logGeneration(input, result, durationMs) {
+  await sbInsert('bs_generations', {
+    user_id: BS_USER_ID || null,
+    session_id: SESSION_ID,
+    prompt: input.prompt || null,
+    genre: input.genre || null,
+    bpm: parseInt(input.bpm) || null,
+    key_root: input.keyRoot || null,
+    key_scale: input.keyScale || null,
+    ref_url: input.refUrl || null,
+    has_audio_analysis: !!input.analysis,
+    track_info: result._trackInfo || null,
+    generated_genre: result.genre || null,
+    generated_bpm: result.bpm || null,
+    generated_key: result.key || null,
+    generated_mood: result.mood || null,
+    generated_code: result.code || null,
+    duration_ms: durationMs,
+  });
+}
+
+// ---- ONBOARDING ----
+function initOnboarding() {
+  const skipped = sessionStorage.getItem('bs_ob_skipped');
+  if (!BS_USER_ID && !skipped) {
+    setTimeout(() => document.getElementById('ob-overlay').classList.add('visible'), 900);
+  }
+}
+
+async function submitOnboarding() {
+  const name  = document.getElementById('ob-name').value.trim();
+  const email = document.getElementById('ob-email').value.trim();
+  if (!name)  { document.getElementById('ob-name').style.borderColor='#ff4444'; return; }
+  if (!email) { document.getElementById('ob-email').style.borderColor='#ff4444'; return; }
+  const btn = document.getElementById('ob-btn');
+  btn.disabled=true; btn.textContent='SAVING...';
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/bs_users`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Prefer':'return=representation,resolution=merge-duplicates'},
+      body:JSON.stringify({ name, surname:document.getElementById('ob-surname').value.trim()||null, email, phone:document.getElementById('ob-phone').value.trim()||null })
+    });
+    const rows = await res.json();
+    if (rows && rows[0] && rows[0].id) { BS_USER_ID=rows[0].id; localStorage.setItem('bs_user_id',BS_USER_ID); }
+  } catch(e) { console.warn('onboarding save failed:',e); }
+  document.getElementById('ob-overlay').classList.remove('visible');
+}
+
+function skipOnboarding() {
+  sessionStorage.setItem('bs_ob_skipped','1');
+  document.getElementById('ob-overlay').classList.remove('visible');
+}
+
+// ---- OPEN SOURCE PANEL ----
+let skillContent = '';
+
+async function openOS() {
+  document.getElementById('os-overlay').classList.add('open');
+  if (!skillContent) {
+    try {
+      const r = await fetch('https://raw.githubusercontent.com/gimenezhenrique28-a11y/Basic-Sound/master/skill/SKILL.md');
+      skillContent = await r.text();
+      document.getElementById('os-skill-preview').textContent = skillContent.slice(0,800)+(skillContent.length>800?'\n...':'');
+    } catch { document.getElementById('os-skill-preview').textContent='// visit GitHub for the full skill'; }
+  }
+}
+
+function closeOS() { document.getElementById('os-overlay').classList.remove('open'); }
+function osOverlayClick(e) { if(e.target===document.getElementById('os-overlay')) closeOS(); }
+
+function copySkill() {
+  if(!skillContent) return;
+  navigator.clipboard.writeText(skillContent).then(()=>{
+    const btn=document.querySelector('.os-copy-btn');
+    btn.textContent='COPIED!'; setTimeout(()=>btn.textContent='COPY SKILL.MD',1500);
+  });
+}
+
+initOnboarding();
 </script>
 </body>
 </html>
