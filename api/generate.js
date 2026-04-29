@@ -30,6 +30,8 @@ function validateCode(code) {
   if (/\.(when|layer|clip|begin)\s*\(/.test(code)) return false;
   return true;
 }
+
+const callClaude = async (system, messages, maxTokens=1500, model='claude-haiku-4-5-20251001', tools=null) => {
   const body = { model, max_tokens:maxTokens, system, messages };
   if (tools) body.tools = tools;
   const r = await fetch('https://api.anthropic.com/v1/messages', {
