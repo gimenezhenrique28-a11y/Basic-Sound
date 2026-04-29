@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BASIC SOUND</title>
+<title>Basic Sound — by SetBr.eak</title>
 <link href="https://fonts.googleapis.com/css2?family=Fragment+Mono:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -17,7 +17,10 @@ body{background:var(--bg);color:var(--text);font-family:'Fragment Mono',monospac
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:9998}
 
 header{border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:14px;background:var(--bg)}
+.logo-wrap{display:flex;flex-direction:column;gap:2px}
 .logo{font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;color:var(--acid);text-transform:uppercase}
+.logo-attr{font-family:'Fragment Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:none}
+.logo-dot{color:var(--acid-dim)}
 .logo-sub{font-size:10px;color:var(--muted);letter-spacing:0.15em;margin-left:auto}
 .status-dot{width:6px;height:6px;background:var(--acid);border-radius:50%;animation:blink 2s infinite;flex-shrink:0}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
@@ -94,6 +97,7 @@ pre{font-family:'Fragment Mono',monospace;font-size:12px;line-height:1.7;color:#
 @media(max-width:768px){
   header{padding:11px 14px;height:44px}
   .logo{font-size:12px;letter-spacing:.15em}
+  .logo-attr{display:none}
   .logo-sub{display:none}
   .fx-btn{font-size:9px;padding:4px 8px;letter-spacing:.08em}
   .layout{display:none}
@@ -347,8 +351,9 @@ input[type="range"].fx-slider::-moz-range-thumb{
 .ob-overlay{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .ob-overlay.visible{opacity:1;pointer-events:all}
 .ob-panel{background:var(--bg3);border:1px solid var(--border3);width:420px;max-width:92vw;padding:32px 28px}
-.ob-logo{font-family:'Space Mono',monospace;font-weight:700;font-size:18px;letter-spacing:.15em;color:var(--acid);margin-bottom:6px}
-.ob-tagline{font-size:11px;color:var(--muted);letter-spacing:.1em;margin-bottom:24px;line-height:1.6}
+.ob-logo{font-family:'Space Mono',monospace;font-weight:700;font-size:18px;letter-spacing:.15em;color:var(--acid);margin-bottom:2px}
+.ob-attr{font-family:'Fragment Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;margin-bottom:18px}
+.ob-tagline{font-size:11px;color:var(--muted);letter-spacing:.1em;margin-bottom:20px;line-height:1.6}
 .ob-field{margin-bottom:14px}
 .ob-label{font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
 .ob-input{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Fragment Mono',monospace;font-size:14px;padding:10px 11px;outline:none;transition:border-color .15s}
@@ -390,7 +395,10 @@ input[type="range"].fx-slider::-moz-range-thumb{
 
 <header>
   <div class="status-dot"></div>
-  <div class="logo">Basic Sound</div>
+  <div class="logo-wrap">
+    <div class="logo">Basic Sound</div>
+    <div class="logo-attr">by SetBr<span class="logo-dot">.</span>eak</div>
+  </div>
   <div class="logo-sub">STRUDEL LIVE CODE ENGINE</div>
   <button class="menu-btn" onclick="openOS()">☰ OPEN SOURCE</button>
   <button class="fx-btn" id="fx-toggle-btn" onclick="toggleFX()">⬡ FX CONTROLS</button>
@@ -400,6 +408,7 @@ input[type="range"].fx-slider::-moz-range-thumb{
 <div class="ob-overlay" id="ob-overlay">
   <div class="ob-panel">
     <div class="ob-logo">Basic Sound</div>
+    <div class="ob-attr">by SetBr<span class="logo-dot">.</span>eak</div>
     <div class="ob-tagline">open source strudel music generator · drop a vibe, get live code<br>no account needed — just tell us who you are</div>
     <div class="ob-row">
       <div class="ob-field">
