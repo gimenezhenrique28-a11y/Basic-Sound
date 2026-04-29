@@ -70,9 +70,9 @@ const GENRE_RULES = {
   'House':
     'BPM 120-128. Kick: bd*4 TR909. Off-beat open hat oh(2,8,1). Bassline: root+fifth — "c2 ~ g1 ~ c2 ~ g1 ~" sine or sawtooth lpf 400. Chord stab off-beat: note("<[c3,eb3,g3] ~ [c3,eb3,g3] ~>") sawtooth lpf 700 short attack. Layer 4: piano or Rhodes stab — note staccato. Layer 5: warm pad. Warm, soulful.',
   'Drum & Bass':
-    'BPM 160-175. Kick: 2-step "bd ~ ~ ~ ~ bd ~ ~" TR909. Snare: "[~ ~ sd ~] [~ ~ [~ sd] ~]" ghost hits. Hats: hh*16 degradeBy 0.1. Bassline: rolling — "[c1 ~ [~ c1] ~] [bb0 ~ ~ ~]" sine. Layer 4: Reese bass — sawtooth lpf 800 detune 0.05. Layer 5: liquid pad or arp. Fast, rolling.',
+    'BPM 160-175. Kick: 2-step "bd ~ ~ ~ ~ bd ~ ~" TR909. Snare: "[~ ~ sd ~] [~ ~ [~ sd] ~]" ghost hits. Hats: hh*8 degradeBy 0.1. Bassline: rolling — "[c1 ~ [~ c1] ~] [bb0 ~ ~ ~]" sine. Layer 4: Reese bass — sawtooth lpf 800 detune 0.05. Layer 5: liquid pad or arp. Fast, rolling.',
   'Jungle':
-    'BPM 165-175. Kick: bd(3,8) TR808. Snare: sd(2,8,2). Hats: hh*16 degradeBy 0.2. Bassline: reggae — "[c1 ~ [~ c1] ~] [bb0 ~ ~ ~]" sine lpf 90. Layer 4: stab "<[c3,eb3] ~ ~ ~ [bb2,d3] ~ ~ ~>" sawtooth short. Layer 5: texture. Chopped, hectic.',
+    'BPM 165-175. Kick: bd(3,8) TR808. Snare: sd(2,8,2). Hats: hh*8 degradeBy 0.2. Bassline: reggae — "[c1 ~ [~ c1] ~] [bb0 ~ ~ ~]" sine lpf 90. Layer 4: stab "<[c3,eb3] ~ ~ ~ [bb2,d3] ~ ~ ~>" sawtooth short. Layer 5: texture. Chopped, hectic.',
   'Dubstep':
     'BPM 138-142 HALF-TIME. Kick: half-time "bd ~ ~ ~ ~ ~ ~ ~" TR808 gain 1.1. Snare ONLY beat 3: "~ ~ ~ ~ sd ~ ~ ~" TR909. Sub: "c1 ~ ~ ~ ~ ~ c1 ~" sine lpf 80. Wob bass: "c2 ~ ~ ~ c2 ~ ~ ~" sawtooth lpf(sine.fast(2).range(150,3000)) resonance 15 distort 1. Layer 5: atmosphere. HEAVY, half-time.',
   'UK Garage':
@@ -80,11 +80,11 @@ const GENRE_RULES = {
   'Ambient':
     'BPM 60-90. NO kick. Sparse hats hh(3,16) gain 0.15 room 0.9. Drone: note("c1") sine lpf 60 attack 4 release 8 slow 4. Slow pad: note("<[c3,eb3,g3,bb3] [ab2,c3,eb3,g3]>") sawtooth lpf 400 attack 3 release 6 room 0.9 slow 4. Layer 4: sparse high notes room 0.95 delay 0.7. Layer 5: sub drone. Spacious, use .slow(3) or .slow(4).',
   'IDM':
-    'BPM 100-140 irregular. Kick: bd(5,16) TR909. Hats: hh*16 degradeBy 0.4 crush 6. Bassline: n(run(8)).scale("C:phrygian") sawtooth fast(3) crush 10. Layer 4: sometimes(x=>x.rev()) or every(3,x=>x.fast(2)). Layer 5: sine fm(perlin.slow(4).range(1,8)) room 0.5. Glitchy, complex.',
+    'BPM 100-140 irregular. Kick: bd(5,16) TR909. Hats: hh*8 degradeBy 0.4 crush 6. Bassline: n(run(8)).scale("C:phrygian") sawtooth fast(3) crush 10. Layer 4: sometimes(x=>x.rev()) or every(3,x=>x.fast(2)). Layer 5: sine fm(perlin.slow(4).range(1,8)) room 0.5. Glitchy, complex.',
   'Acid':
     'BPM 130-145. Kick: bd*4 TR909. ACID BASSLINE is the star: "c2 ~ ~ c2 ~ ~ eb2 ~" sawtooth lpf(sine.slow(2).range(200,4000)) resonance 25 gain 0.7 — squirly filter sweep IS the sound. Second acid layer slightly transposed. Layer 4: minimal dark pad. Layer 5: cp or perc tops. Resonant, filter-heavy.',
   'Footwork':
-    'BPM 155-165. Kick: rapid "[bd bd] ~ bd ~ [bd ~] bd ~ ~" TR909. Snare: sd(5,16). Hats: hh*16 degradeBy 0.15. Bassline: punchy short "c1 ~ eb1 ~ ~ c1 ~ ~" sine attack 0.001 release 0.1. Layer 4: percussive stab. Layer 5: pad. Fast, syncopated.',
+    'BPM 155-165. Kick: rapid "[bd bd] ~ bd ~ [bd ~] bd ~ ~" TR909. Snare: sd(5,16). Hats: hh*8 degradeBy 0.15. Bassline: punchy short "c1 ~ eb1 ~ ~ c1 ~ ~" sine attack 0.001 release 0.1. Layer 4: percussive stab. Layer 5: pad. Fast, syncopated.',
   'Breaks':
     'BPM 130-145. Kick: BROKEN "bd ~ ~ bd [~ bd] ~ ~ ~" TR909. Snare: sd beat 2 with variations. Hats: hh*8 degradeBy 0.1. Bassline: funky "[c2 ~ eb2 ~] [g1 ~ ~ ~]" sawtooth lpf 600. Layer 4: off-beat chord stab. Layer 5: Rhodes or organ. Funky, bouncy.',
   'Hardstyle':
@@ -103,10 +103,12 @@ $: note("c4").s("triangle").lpf(800).room(0.7).gain(0.2).slow(2)
 
 BANNED — never output these:
 | (pipe character for stacking)    — WRONG, use stack() with commas
-$:drums / $:bass / $:lead labels   — WRONG, just use $: 
+$:drums / $:bass / $:lead labels   — WRONG, just use $:
 sound(...)                         — WRONG, use s(...)
 .when() .layer() .clip() .begin()  — WRONG, don't exist
 CamelCase methods                  — WRONG
+hh*16 / hh*12 / sd*N / cp*N       — WRONG, max hi-hat density is hh*8
+.fast() on snare or hi-hat         — WRONG, never speed up percussion
 
 RULES:
 - First line: setcps(BPM/120)
